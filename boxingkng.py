@@ -34,3 +34,58 @@ def load_animation_frames(folder_path):
         print(f"경고: {folder_path} 폴더에서 이미지를 로드하지 못했습니다.")
 
     return frames
+
+
+# Pygame 초기화
+pygame.init()
+
+# 화면 크기 설정
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("2DGP 프로젝트 - 2주차 (애니메이션 적용)")
+
+# FPS 설정을 위한 Clock 객체
+clock = pygame.time.Clock()
+
+# --- 2. 색상 정의 ---
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+
+
+# --- 3. 플레이어 클래스 정의 (2주차 핵심 목표) ---
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+
+        # --- 1. 애니메이션 로딩 ---
+        # 이미지 폴더들이 이 스크립트와 같은 위치에 있다고 가정
+        self.animations = {}  # 모든 애니메이션을 저장할 딕셔너리
+        self.animations['Idle'] = load_animation_frames('Idle')
+        self.animations['Walk'] = load_animation_frames('Walk')
+        # (3주차에 'PunchLeft' 등 다른 애니메이션도 여기에 추가)
+
+        # --- 2. 상태 및 애니메이션 관리 ---
+        self.current_state = 'Idle'  # 플레이어의 현재 상태
+        self.current_frame = 0  # 현재 애니메이션 프레임 인덱스
+        self.last_update_time = pygame.time.get_ticks()  # 애니메이션 속도 조절용
+        self.animation_delay = 100  # 100ms마다 프레임 변경 (0.1초)
+
+        # --- 3. 이미지 및 위치 ---
+        if self.animations['Idle']:
+            self.image = self.animations['Idle'][0]  # 첫 이미지는 Idle의 0번째 프레임
+            self.rect = self.image.get_rect()
+        else:
+            # 로드 실패 시 임시 사각형
+            print("오류: 'Idle' 애니메이션을 찾을 수 없습니다. 임시 사각형으로 대체합니다.")
+            self.image = pygame.Surface((50, 100))
+            self.image.fill(RED)
+            self.rect = self.image.get_rect()
+
+        # 플레이어 처음 위치
+        self.rect.centerx = SCREEN_WIDTH // 2
+        self.rect.bottom = SCREEN_HEIGHT - 30
+
+        self.speed = 5
+        self.is_moving = False  # 현재 움직이는 중인지 확인
