@@ -115,3 +115,73 @@ class Player(pygame.sprite.Sprite):
                 self.image = new_image
                 self.rect = self.image.get_rect()
                 self.rect.midbottom = old_midbottom
+
+                def update(self):
+                    """플레이어 입력 처리 및 상태 업데이트."""
+                    keys = pygame.key.get_pressed()
+
+                    self.is_moving = False  # 매 프레임마다 초기화
+
+                    # 2D 복싱 게임은 보통 좌우로만 움직입니다. (상하 이동 제거)
+                    if keys[pygame.K_LEFT]:
+                        self.rect.x -= self.speed
+                        self.is_moving = True
+                    if keys[pygame.K_RIGHT]:
+                        self.rect.x += self.speed
+                        self.is_moving = True
+
+                    # (만약 상하 이동이 필요하다면 아래 주석을 해제하세요)
+                    # if keys[pygame.K_UP]:
+                    #     self.rect.y -= self.speed
+                    #     self.is_moving = True
+                    # if keys[pygame.K_DOWN]:
+                    #     self.rect.y += self.speed
+                    #     self.is_moving = True
+
+                    # --- 상태 결정 ---
+                    if self.is_moving:
+                        self.current_state = 'Walk'
+                    else:
+                        self.current_state = 'Idle'
+
+                    # --- 화면 경계 처리 ---
+                    if self.rect.left < 0: self.rect.left = 0
+                    if self.rect.right > SCREEN_WIDTH: self.rect.right = SCREEN_WIDTH
+                    if self.rect.top < 0: self.rect.top = 0
+                    if self.rect.bottom > SCREEN_HEIGHT: self.rect.bottom = SCREEN_HEIGHT
+
+                    # --- 애니메이션 실행 ---
+                    self.animate()
+
+                # ( draw 메서드는 Sprite Group을 사용하므로 Player 클래스 내에는 필요 없습니다 )
+
+            # --- 4. 게임 객체 생성 ---
+            player1 = Player()
+
+            # 스프라이트 그룹 생성
+            all_sprites = pygame.sprite.Group()
+            all_sprites.add(player1)  # 플레이어를 그룹에 추가
+
+            # --- 5. 메인 게임 루프 ---
+            running = True
+            while running:
+                # 1) 이벤트 처리 (종료)
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:  # 창 닫기 버튼을 눌렀을 때
+                        running = False
+
+                # 2) 게임 로직 업데이트
+                all_sprites.update()  # 그룹의 모든 스프라이트(현재 player1)의 update() 메서드 호출
+
+                # 3) 화면 그리기
+                screen.fill(BLACK)  # 화면을 검은색으로 채우기
+                all_sprites.draw(screen)  # 그룹의 모든 스프라이트를 화면에 그림
+
+                # 4) 화면 업데이트
+                pygame.display.flip()  # 변경된 내용을 화면에 반영
+
+                # 5) FPS 설정
+                clock.tick(60)  # 초당 60 프레임으로 제한
+
+            # --- 6. 게임 종료 ---
+            pygame.quit()
