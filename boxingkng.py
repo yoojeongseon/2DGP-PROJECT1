@@ -89,3 +89,29 @@ class Player(pygame.sprite.Sprite):
 
         self.speed = 5
         self.is_moving = False  # 현재 움직이는 중인지 확인
+
+        def animate(self):
+            """현재 상태에 맞춰 애니메이션을 재생합니다."""
+            now = pygame.time.get_ticks()
+
+            # 현재 상태에 맞는 애니메이션 프레임 리스트 가져오기
+            frames = self.animations.get(self.current_state, self.animations.get('Idle'))
+
+            if not frames:  # 애니메이션 프레임이 없으면 중단
+                return
+
+            # 마지막 업데이트로부터 'animation_delay' 시간이 지났는지 확인
+            if now - self.last_update_time > self.animation_delay:
+                self.last_update_time = now
+
+                # 다음 프레임으로 이동 (루프)
+                self.current_frame = (self.current_frame + 1) % len(frames)
+
+                # 현재 이미지 업데이트
+                new_image = frames[self.current_frame]
+
+                # 이미지 교체 시 위치 고정 (중요!)
+                old_midbottom = self.rect.midbottom
+                self.image = new_image
+                self.rect = self.image.get_rect()
+                self.rect.midbottom = old_midbottom
