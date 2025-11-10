@@ -1,11 +1,7 @@
 import pygame
 import os
 from attacks import Attack  # attacks.py 에서 Attack 클래스 가져오기
-from utils import load_animation_frames  # <-- [수정] utils.py 에서 헬퍼 함수 가져오기
-
-# --- 0. 헬퍼 함수 (애니메이션 로드) ---
-# [삭제] 여기에 있던 load_animation_frames 함수 정의는 utils.py 로 이동했습니다.
-
+from utils import load_animation_frames  # utils.py 에서 헬퍼 함수 가져오기
 
 # Pygame 초기화
 pygame.init()
@@ -14,7 +10,7 @@ pygame.init()
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("2DGP 프로젝트 - 3주차 (체력 시스템 적용)")
+pygame.display.set_caption("2DGP 프로젝트 - 3주차 (버그 수정)")
 
 # FPS 설정을 위한 Clock 객체
 clock = pygame.time.Clock()
@@ -31,7 +27,7 @@ class Player(pygame.sprite.Sprite):
     def __init__(self, start_pos, controls, anim_folders, scale_factor=1.0, flip_images=False):
         super().__init__()
 
-        # --- [수정] 1. 기본 애니메이션 로딩 ---
+        # --- 1. 기본 애니메이션 로딩 ---
         self.animations = {}
         self.animations['Idle'] = load_animation_frames(
             anim_folders['Idle'], scale_factor, flip_images
@@ -40,25 +36,17 @@ class Player(pygame.sprite.Sprite):
             anim_folders['Walk'], scale_factor, flip_images
         )
 
-        # --- [추가] 1-2. 공격 모션 로딩 (Attack 객체 사용) ---
+        # --- 1-2. 공격 모션 로딩 (Attack 객체 사용) ---
         self.attacks = {}
         self.attacks['Jab'] = Attack(
-            anim_folders.get('Jab', 'Jab'),
-            10,  # 잽 데미지
-            scale_factor,
-            flip_images
+            anim_folders.get('Jab', 'Jab'), 10, scale_factor, flip_images
         )
         self.attacks['Straight'] = Attack(
-            anim_folders.get('Straight', 'Straight'),
-            20,  # 스트레이트 데미지
-            scale_factor,
-            flip_images
+            anim_folders.get('Straight', 'Straight'), 20, scale_factor, flip_images
         )
         self.attacks['Uppercut'] = Attack(
-            anim_folders.get('Uppercut', 'Uppercut'),
-            30,  # 어퍼컷 데미지
-            scale_factor,
-            flip_images
+            # 어퍼컷 데미지는 0으로 설정 (어차피 KO 로직을 따로 탈것임)
+            anim_folders.get('Uppercut', 'Uppercut'), 0, scale_factor, flip_images
         )
 
         self.looping_states = ['Idle', 'Walk']
@@ -90,10 +78,13 @@ class Player(pygame.sprite.Sprite):
         self.key_straight = controls[3]
         self.key_uppercut = controls[4]
 
-        # --- [추가] 5. 체력 시스템 (3주차 목표) ---
+        # --- 5. 체력 시스템 ---
         self.max_hp = 100
         self.hp = 100
         self.is_alive = True
+
+        # --- [추가] 6. 중복 타격 방지 플래그 ---
+        self.has_hit = False
 
     def animate(self):
         """현재 상태에 맞춰 애니메이션을 재생합니다."""
@@ -103,64 +94,55 @@ class Player(pygame.sprite.Sprite):
             return
         self.last_update_time = now
 
-        # --- [수정] 상태 구분 로직 ---
+        # --- 상태 구분 로직 ---
         is_looping = self.current_state in self.looping_states
 
         current_frames = []
         is_attack = False
 
         if is_looping:
-            # 'Idle', 'Walk' (반복 애니메이션) 로직
             current_frames = self.animations.get(self.current_state, self.animations['Idle'])
         else:
-            # 'Jab', 'Straight' (공격 애니메이션) 로직
             if self.current_state in self.attacks:
                 current_frames = self.attacks[self.current_state].frames
                 is_attack = True
             else:
-                # (예: 'Hurt', 'KO' 등 방어/피격 상태)
                 current_frames = self.animations.get(self.current_state, self.animations['Idle'])
 
         if not current_frames:
-            self.current_state = 'Idle'  # 프레임 없으면 Idle로 복귀
+            self.current_state = 'Idle'
             return
 
         # --- 애니메이션 재생 ---
         if is_looping:
             self.current_frame = (self.current_frame + 1) % len(current_frames)
         else:
-            # 공격 또는 피격 애니메이션 (한 번만 재생)
             self.current_frame += 1
             if self.current_frame >= len(current_frames):
-                self.current_state = 'Idle'  # 애니메이션 끝 -> Idle 복귀
-                self.current_frame = 0  # 프레임 리셋
+                self.current_state = 'Idle'
+                self.current_frame = 0
 
-        # --- 이미지 업데이트 (Idle로 복귀한 경우도 처리) ---
+        # --- 이미지 업데이트 ---
         if self.current_state == 'Idle':
-            # Idle 프레임이 1개 이상일 경우를 대비해 % 연산
             self.image = self.animations['Idle'][self.current_frame % len(self.animations['Idle'])]
         else:
-            # 공격 애니메이션은 프레임 인덱스가 범위를 넘지 않도록
-            # (Idle로 방금 바뀐 경우 self.current_frame이 0이 됨)
             if self.current_frame < len(current_frames):
-                 self.image = current_frames[self.current_frame]
+                self.image = current_frames[self.current_frame]
             else:
-                 # 혹시 모를 오류 방지 (애니메이션 종료 후 Idle로 복귀)
-                 self.image = self.animations['Idle'][0]
-                 self.current_state = 'Idle'
-                 self.current_frame = 0
+                self.image = self.animations['Idle'][0]
+                self.current_state = 'Idle'
+                self.current_frame = 0
 
-
-        # --- 위치 고정 (동일) ---
+        # --- 위치 고정 ---
         old_midbottom = self.rect.midbottom
         self.rect = self.image.get_rect()
         self.rect.midbottom = old_midbottom
 
     def update(self):
         """플레이어 입력 처리 및 상태 업데이트."""
-        # (KO 상태 등에서는 조작 불가)
         if not self.is_alive:
-            # (나중에 'KO' 상태 애니메이션 추가)
+            # (KO 상태 애니메이션 처리)
+            self.animate()
             return
 
         keys = pygame.key.get_pressed()
@@ -169,18 +151,21 @@ class Player(pygame.sprite.Sprite):
         is_busy = self.current_state not in self.looping_states
         if is_busy:
             self.animate()
-            return  # update 함수 종료
+            return
 
         # 2. 공격 입력 (이동보다 우선)
         if keys[self.key_jab]:
             self.current_state = 'Jab'
             self.current_frame = 0
+            self.has_hit = False  # <-- [수정] 공격 시작 시 리셋
         elif keys[self.key_straight]:
             self.current_state = 'Straight'
             self.current_frame = 0
+            self.has_hit = False  # <-- [수정] 공격 시작 시 리셋
         elif keys[self.key_uppercut]:
             self.current_state = 'Uppercut'
             self.current_frame = 0
+            self.has_hit = False  # <-- [수정] 공격 시작 시 리셋
 
         # 3. 이동 입력 (공격 중이 아닐 때)
         else:
@@ -209,18 +194,17 @@ class Player(pygame.sprite.Sprite):
         if self.hp <= 0:
             self.hp = 0
             self.is_alive = False
-            self.current_state = 'KO'  # (나중에 KO 애니메이션 추가)
+            self.current_state = 'KO'  # (나중에 KO 애니메이션 폴더 추가 필요)
             self.current_frame = 0
             print("KO!")
         else:
-            # (나중에 'Hurt' 애니메이션 추가)
+            # (나중에 'Hurt' 애니메이션 폴더 추가 필요)
             # self.current_state = 'Hurt'
             # self.current_frame = 0
             print(f"Hit! HP left: {self.hp}")
 
 
 # --- 4. 게임 객체 생성 ---
-# (P1_ANIM_FOLDERS, P2_ANIM_FOLDERS 설정은 기존과 동일)
 P1_SCALE = 0.5
 P1_START_POS = (SCREEN_WIDTH // 4, SCREEN_HEIGHT - 30)
 P1_CONTROLS = (pygame.K_a, pygame.K_d, pygame.K_w, pygame.K_e, pygame.K_r)
@@ -241,7 +225,7 @@ all_sprites.add(player1)
 all_sprites.add(player2)
 
 
-# --- [추가] 7주차 UI 구현 (체력 바) ---
+# --- 7주차 UI 구현 (체력 바) ---
 def draw_health_bar(surface, x, y, hp, max_hp):
     """체력 바를 그리는 함수"""
     if hp < 0: hp = 0
@@ -250,7 +234,6 @@ def draw_health_bar(surface, x, y, hp, max_hp):
     fill_percent = (hp / max_hp)
     fill_length = int(BAR_LENGTH * fill_percent)
 
-    # 테두리(빨간색)와 내부(초록색)
     outline_rect = pygame.Rect(x, y, BAR_LENGTH, BAR_HEIGHT)
     fill_rect = pygame.Rect(x, y, fill_length, BAR_HEIGHT)
 
@@ -269,33 +252,48 @@ while running:
     # 2) 게임 로직 업데이트
     all_sprites.update()
 
-    # --- [추가] 3주차 타격 판정 로직 ---
+    # --- [수정] 3주차 타격 판정 로직 (중복 히트 방지) ---
+
     # P1이 P2를 때렸는지 검사
     attack_name_p1 = player1.current_state
-    if (attack_name_p1 in player1.attacks and  # P1이 공격 상태이고
-            player1.current_frame == 1 and  # [수정] 애니메이션 1프레임(타격 순간)
-            pygame.sprite.collide_rect(player1, player2)):  # 충돌했다면
+    if (attack_name_p1 in player1.attacks and
+            player1.current_frame == 1 and
+            pygame.sprite.collide_rect(player1, player2) and
+            player1.has_hit == False):  # <-- [수정] 아직 안 때렸는지 확인
 
-        # P2가 아직 피격되지 않았다면 (중복 타격 방지)
-        if player2.current_state == 'Idle' or player2.current_state == 'Walk':
-            damage = player1.attacks[attack_name_p1].damage  # Attack 객체에서 데미지 가져오기
-            player2.take_damage(damage)
+        # P2가 피격 가능한 상태인지 확인 (나중에 방어/회피 상태 추가 시 여기 수정)
+        if player2.current_state in player2.looping_states:
+            player1.has_hit = True  # <-- [수정] "이번 공격은 때렸음"으로 표시
+
+            if attack_name_p1 == 'Uppercut':
+                player2.take_damage(player2.max_hp)  # KO
+                print("P1 Uppercut! KO!")
+            else:
+                damage = player1.attacks[attack_name_p1].damage  # 잽(10) or 스트레이트(20)
+                player2.take_damage(damage)
 
     # P2가 P1을 때렸는지 검사
     attack_name_p2 = player2.current_state
     if (attack_name_p2 in player2.attacks and
             player2.current_frame == 1 and
-            pygame.sprite.collide_rect(player2, player1)):
+            pygame.sprite.collide_rect(player2, player1) and
+            player2.has_hit == False):  # <-- [수정] 아직 안 때렸는지 확인
 
-        if player1.current_state == 'Idle' or player1.current_state == 'Walk':
-            damage = player2.attacks[attack_name_p2].damage
-            player1.take_damage(damage)
+        if player1.current_state in player1.looping_states:
+            player2.has_hit = True  # <-- [수정] "이번 공격은 때렸음"으로 표시
+
+            if attack_name_p2 == 'Uppercut':
+                player1.take_damage(player1.max_hp)  # KO
+                print("P2 Uppercut! KO!")
+            else:
+                damage = player2.attacks[attack_name_p2].damage
+                player1.take_damage(damage)
 
     # 3) 화면 그리기
     screen.fill(BLACK)
     all_sprites.draw(screen)
 
-    # [추가] 체력 바 그리기 (7주차 UI)
+    # 체력 바 그리기
     draw_health_bar(screen, 20, 20, player1.hp, player1.max_hp)  # P1 HP (왼쪽 상단)
     draw_health_bar(screen, SCREEN_WIDTH - 320, 20, player2.hp, player2.max_hp)  # P2 HP (오른쪽 상단)
 
