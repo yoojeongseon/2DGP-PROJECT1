@@ -1,45 +1,10 @@
-# (파일: player.py)
-
 import pygame
 import os
-from attacks import Attack  # <-- [추가] 새로 만든 Attack 클래스를 가져옵니다.
-
+from attacks import Attack  # attacks.py 에서 Attack 클래스 가져오기
+from utils import load_animation_frames  # <-- [수정] utils.py 에서 헬퍼 함수 가져오기
 
 # --- 0. 헬퍼 함수 (애니메이션 로드) ---
-# ( attacks.py 에서 이 함수를 사용하므로, 여기에도 존재해야 합니다 )
-def load_animation_frames(folder_path, scale_factor=1.0, flip_images=False):
-    """폴더 경로와 배율을 받아 스케일링 및 반전된 이미지 프레임 리스트를 반환합니다."""
-    frames = []
-    if not os.path.exists(folder_path):
-        print(f"경고: 애니메이션 폴더를 찾을 수 없습니다: {folder_path}")
-        return frames
-
-    file_names = os.listdir(folder_path)
-
-    try:
-        file_names.sort(key=lambda f: int(''.join(filter(str.isdigit, f)) or 0))
-    except ValueError:
-        print(f"경고: {folder_path}의 파일명에서 숫자를 추출할 수 없습니다. 일반 정렬합니다.")
-        file_names.sort()
-
-    for file_name in file_names:
-        if file_name.endswith(('.png', '.jpg', '.bmp')):
-            image_path = os.path.join(folder_path, file_name)
-            try:
-                image = pygame.image.load(image_path).convert_alpha()
-                width = image.get_width()
-                height = image.get_height()
-                image = pygame.transform.scale(image, (int(width * scale_factor), int(height * scale_factor)))
-                if flip_images:
-                    image = pygame.transform.flip(image, True, False)
-                frames.append(image)
-            except pygame.error as e:
-                print(f"이미지 로드 오류 {image_path}: {e}")
-
-    if not frames:
-        print(f"경고: {folder_path} 폴더에서 이미지를 로드하지 못했습니다.")
-
-    return frames
+# [삭제] 여기에 있던 load_animation_frames 함수 정의는 utils.py 로 이동했습니다.
 
 
 # Pygame 초기화
@@ -172,9 +137,19 @@ class Player(pygame.sprite.Sprite):
 
         # --- 이미지 업데이트 (Idle로 복귀한 경우도 처리) ---
         if self.current_state == 'Idle':
+            # Idle 프레임이 1개 이상일 경우를 대비해 % 연산
             self.image = self.animations['Idle'][self.current_frame % len(self.animations['Idle'])]
         else:
-            self.image = current_frames[self.current_frame]
+            # 공격 애니메이션은 프레임 인덱스가 범위를 넘지 않도록
+            # (Idle로 방금 바뀐 경우 self.current_frame이 0이 됨)
+            if self.current_frame < len(current_frames):
+                 self.image = current_frames[self.current_frame]
+            else:
+                 # 혹시 모를 오류 방지 (애니메이션 종료 후 Idle로 복귀)
+                 self.image = self.animations['Idle'][0]
+                 self.current_state = 'Idle'
+                 self.current_frame = 0
+
 
         # --- 위치 고정 (동일) ---
         old_midbottom = self.rect.midbottom
