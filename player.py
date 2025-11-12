@@ -7,10 +7,10 @@ from utils import load_animation_frames  # utils.py 에서 헬퍼 함수 가져�
 pygame.init()
 
 # 화면 크기 설정
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1080
+SCREEN_HEIGHT = 720
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("2DGP 프로젝트 - 3주차 (버그 수정)")
+pygame.display.set_caption("2DGP 프로젝트")
 
 # FPS 설정을 위한 Clock 객체
 clock = pygame.time.Clock()
