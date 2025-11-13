@@ -9,7 +9,7 @@ pygame.init()
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("2DGP 프로젝트 - 5주차 (동시 타격 수정)")
+pygame.display.set_caption("2DGP 프로젝트 - 5주차 (KO 속성 리팩토링)")
 clock = pygame.time.Clock()
 
 # --- 색상 정의 ---
@@ -65,7 +65,7 @@ while running:
     # 2) 게임 로직 업데이트
     all_sprites.update()
 
-    # --- [수정] 3. 타격 판정 로직 (동시 타격 버그 수정) ---
+    # --- 3. 타격 판정 로직 (KO 속성 사용) ---
 
     # P1이 P2를 때렸는지 검사
     attack_name_p1 = player1.current_state
@@ -75,14 +75,14 @@ while running:
             player1.current_frame == current_attack_p1.hit_frame and
             pygame.sprite.collide_rect(player1, player2) and
             player1.has_hit == False and
-            player2.is_alive):  # P2가 살아있을 때만
+            player2.is_alive):
 
         player1.has_hit = True
 
         if player2.current_state == 'Blocking':
             print("P2 Blocked!")
-        else:  # [수정] 방어 중이 아니면 (공격 중이어도) 무조건 맞음
-            if attack_name_p1 == 'Uppercut':
+        else:
+            if current_attack_p1.is_ko_move:
                 player2.take_damage(player2.max_hp)
             else:
                 damage = current_attack_p1.damage
@@ -96,14 +96,14 @@ while running:
             player2.current_frame == current_attack_p2.hit_frame and
             pygame.sprite.collide_rect(player2, player1) and
             player2.has_hit == False and
-            player1.is_alive):  # P1이 살아있을 때만
+            player1.is_alive):
 
         player2.has_hit = True
 
         if player1.current_state == 'Blocking':
             print("P1 Blocked!")
-        else:  # [수정] 방어 중이 아니면 (공격 중이어도) 무조건 맞음
-            if attack_name_p2 == 'Uppercut':
+        else:
+            if current_attack_p2.is_ko_move:
                 player1.take_damage(player1.max_hp)
             else:
                 damage = current_attack_p2.damage
@@ -113,6 +113,7 @@ while running:
     screen.fill(BLACK)
     all_sprites.draw(screen)
     draw_health_bar(screen, 20, 20, player1.hp, player1.max_hp)
+    # [수정] 오타("Dra")가 삭제되었습니다.
     draw_health_bar(screen, SCREEN_WIDTH - 320, 20, player2.hp, player2.max_hp)
 
     # 5) 화면 업데이트

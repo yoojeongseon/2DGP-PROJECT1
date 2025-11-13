@@ -8,11 +8,9 @@ from defenses import Defense
 
 
 class Player(pygame.sprite.Sprite):
-    # [수정 1] __init__에 screen_width를 받도록 추가
     def __init__(self, start_pos, controls, anim_folders, screen_width, scale_factor=1.0, flip_images=False):
         super().__init__()
 
-        # --- [수정 2] screen_width를 self.screen_width에 저장 ---
         self.screen_width = screen_width
 
         # --- 1. 기본 애니메이션 로딩 ---
@@ -24,31 +22,37 @@ class Player(pygame.sprite.Sprite):
             anim_folders['Walk'], scale_factor, flip_images
         )
 
-        # --- 1-2. 공격 모션 로딩 ---
+        # --- [수정] 1-2. 공격 모션 로딩 (KO 속성 추가) ---
         self.attacks = {}
+
         self.attacks['Jab'] = Attack(
             folder_name=anim_folders.get('Jab', 'Jab'),
             damage=10,
             hit_frame=1,
-            hitbox_rect=pygame.Rect(50, 20, 40, 30),
+            hitbox_rect=pygame.Rect(50, 20, 40, 30),  # (x, y, w, h) - 예시값
             scale_factor=scale_factor,
-            flip_images=flip_images
+            flip_images=flip_images,
+            is_ko_move=False  # (기본값)
         )
+
         self.attacks['Straight'] = Attack(
             folder_name=anim_folders.get('Straight', 'Straight'),
             damage=20,
             hit_frame=2,
-            hitbox_rect=pygame.Rect(60, 25, 50, 30),
+            hitbox_rect=pygame.Rect(60, 25, 50, 30),  # 예시값
             scale_factor=scale_factor,
-            flip_images=flip_images
+            flip_images=flip_images,
+            is_ko_move=False  # (기본값)
         )
+
         self.attacks['Uppercut'] = Attack(
             folder_name=anim_folders.get('Uppercut', 'Uppercut'),
-            damage=0,
+            damage=0,  # (KO 무브라 데미지는 0)
             hit_frame=1,
-            hitbox_rect=pygame.Rect(40, 0, 40, 50),
+            hitbox_rect=pygame.Rect(40, 0, 40, 50),  # 예시값
             scale_factor=scale_factor,
-            flip_images=flip_images
+            flip_images=flip_images,
+            is_ko_move=True  # <-- [수정] 이 공격은 KO 기술임을 명시
         )
 
         # --- 1-3. 방어 모션 로딩 ---
@@ -108,25 +112,19 @@ class Player(pygame.sprite.Sprite):
         is_looping = self.current_state in self.looping_states
 
         current_frames = []
-        is_attack = False
 
         if is_looping:
             current_frames = self.animations.get(self.current_state)
-
             if self.current_state == 'Blocking':
                 if 'Blocking' in self.defenses and self.defenses['Blocking'].frames:
                     current_frames = self.defenses['Blocking'].frames
                 else:
-                    print("경고: 'Blocking' 애니메이션을 찾을 수 없습니다.")
                     current_frames = self.animations.get('Idle')
-
             if not current_frames:
                 current_frames = self.animations.get('Idle')
-
         else:
             if self.current_state in self.attacks:
                 current_frames = self.attacks[self.current_state].frames
-                is_attack = True
             else:
                 current_frames = self.animations.get(self.current_state, self.animations['Idle'])
 
@@ -197,9 +195,8 @@ class Player(pygame.sprite.Sprite):
                 self.is_moving = True
             self.current_state = 'Walk' if self.is_moving else 'Idle'
 
-        # --- [수정 3] 화면 경계 처리 ---
+        # --- 화면 경계 처리 ---
         if self.rect.left < 0: self.rect.left = 0
-        # `SCREEN_WIDTH` 대신 `self.screen_width`를 사용
         if self.rect.right > self.screen_width: self.rect.right = self.screen_width
 
         self.animate()
