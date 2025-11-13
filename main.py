@@ -9,7 +9,7 @@ pygame.init()
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("2DGP 프로젝트 - 5주차 (버그 수정)")
+pygame.display.set_caption("2DGP 프로젝트 - 5주차 (동시 타격 수정)")
 clock = pygame.time.Clock()
 
 # --- 색상 정의 ---
@@ -42,14 +42,12 @@ P1_ANIM_FOLDERS = {
     'Jab': 'PunchLeft', 'Straight': 'PunchRight', 'Uppercut': 'PunchUp',
     'Blocking': 'Blocking'
 }
-# [수정] Player 생성 시 SCREEN_WIDTH 값을 넘겨줍니다.
 player1 = Player(P1_START_POS, P1_CONTROLS, P1_ANIM_FOLDERS, SCREEN_WIDTH, P1_SCALE, flip_images=False)
 
 P2_SCALE = 0.5
 P2_START_POS = (SCREEN_WIDTH * 3 // 4, SCREEN_HEIGHT - 30)
 P2_CONTROLS = (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_u, pygame.K_i, pygame.K_o, pygame.K_DOWN)
 P2_ANIM_FOLDERS = P1_ANIM_FOLDERS
-# [수정] Player 생성 시 SCREEN_WIDTH 값을 넘겨줍니다.
 player2 = Player(P2_START_POS, P2_CONTROLS, P2_ANIM_FOLDERS, SCREEN_WIDTH, P2_SCALE, flip_images=True)
 
 all_sprites = pygame.sprite.Group()
@@ -67,7 +65,7 @@ while running:
     # 2) 게임 로직 업데이트
     all_sprites.update()
 
-    # --- 3. 타격 판정 로직 ---
+    # --- [수정] 3. 타격 판정 로직 (동시 타격 버그 수정) ---
 
     # P1이 P2를 때렸는지 검사
     attack_name_p1 = player1.current_state
@@ -76,13 +74,14 @@ while running:
     if (current_attack_p1 and
             player1.current_frame == current_attack_p1.hit_frame and
             pygame.sprite.collide_rect(player1, player2) and
-            player1.has_hit == False):
+            player1.has_hit == False and
+            player2.is_alive):  # P2가 살아있을 때만
 
         player1.has_hit = True
 
         if player2.current_state == 'Blocking':
             print("P2 Blocked!")
-        elif player2.current_state in player2.looping_states:
+        else:  # [수정] 방어 중이 아니면 (공격 중이어도) 무조건 맞음
             if attack_name_p1 == 'Uppercut':
                 player2.take_damage(player2.max_hp)
             else:
@@ -96,13 +95,14 @@ while running:
     if (current_attack_p2 and
             player2.current_frame == current_attack_p2.hit_frame and
             pygame.sprite.collide_rect(player2, player1) and
-            player2.has_hit == False):
+            player2.has_hit == False and
+            player1.is_alive):  # P1이 살아있을 때만
 
         player2.has_hit = True
 
         if player1.current_state == 'Blocking':
             print("P1 Blocked!")
-        elif player1.current_state in player1.looping_states:
+        else:  # [수정] 방어 중이 아니면 (공격 중이어도) 무조건 맞음
             if attack_name_p2 == 'Uppercut':
                 player1.take_damage(player1.max_hp)
             else:
