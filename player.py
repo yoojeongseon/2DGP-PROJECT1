@@ -5,6 +5,7 @@ import os
 from attacks import Attack
 from utils import load_animation_frames
 from defenses import Defense
+from effects import Effect  # <-- [수정 1] effects.py 에서 Effect 클래스 가져오기
 
 
 class Player(pygame.sprite.Sprite):
@@ -21,44 +22,39 @@ class Player(pygame.sprite.Sprite):
         self.animations['Walk'] = load_animation_frames(
             anim_folders['Walk'], scale_factor, flip_images
         )
+        # [수정 2] 'Dizzy'를 self.animations에서 제거
+        # (나중에 KO 폴더는 여기에 추가)
 
-        # --- [수정] 1-2. 공격 모션 로딩 (KO 속성 추가) ---
+        # --- 1-2. 공격 모션 로딩 ---
         self.attacks = {}
-
         self.attacks['Jab'] = Attack(
             folder_name=anim_folders.get('Jab', 'Jab'),
-            damage=10,
-            hit_frame=1,
-            hitbox_rect=pygame.Rect(50, 20, 40, 30),  # (x, y, w, h) - 예시값
-            scale_factor=scale_factor,
-            flip_images=flip_images,
-            is_ko_move=False  # (기본값)
+            damage=10, hit_frame=1, hitbox_rect=pygame.Rect(50, 20, 40, 30),
+            scale_factor=scale_factor, flip_images=flip_images, is_ko_move=False
         )
-
         self.attacks['Straight'] = Attack(
             folder_name=anim_folders.get('Straight', 'Straight'),
-            damage=20,
-            hit_frame=2,
-            hitbox_rect=pygame.Rect(60, 25, 50, 30),  # 예시값
-            scale_factor=scale_factor,
-            flip_images=flip_images,
-            is_ko_move=False  # (기본값)
+            damage=20, hit_frame=2, hitbox_rect=pygame.Rect(60, 25, 50, 30),
+            scale_factor=scale_factor, flip_images=flip_images, is_ko_move=False
         )
-
         self.attacks['Uppercut'] = Attack(
             folder_name=anim_folders.get('Uppercut', 'Uppercut'),
-            damage=0,  # (KO 무브라 데미지는 0)
-            hit_frame=1,
-            hitbox_rect=pygame.Rect(40, 0, 40, 50),  # 예시값
-            scale_factor=scale_factor,
-            flip_images=flip_images,
-            is_ko_move=True  # <-- [수정] 이 공격은 KO 기술임을 명시
+            damage=0, hit_frame=1, hitbox_rect=pygame.Rect(40, 0, 40, 50),
+            scale_factor=scale_factor, flip_images=flip_images, is_ko_move=True
         )
 
         # --- 1-3. 방어 모션 로딩 ---
         self.defenses = {}
         self.defenses['Blocking'] = Defense(
             anim_folders.get('Blocking', 'Blocking'),
+            scale_factor,
+            flip_images
+        )
+
+        # --- [수정 3] 1-4. 효과(Effect) 로딩 ---
+        self.effects = {}
+        self.effects['Dizzy'] = Effect(
+            anim_folders.get('Dizzy', 'Dizzy'),  # 'Dizzy' 폴더 사용
             scale_factor,
             flip_images
         )
@@ -101,6 +97,9 @@ class Player(pygame.sprite.Sprite):
         # --- 6. 중복 타격 방지 플래그 ---
         self.has_hit = False
 
+        # --- 7. 각성 상태 플래그 ---
+        self.is_awakened = False
+
     def animate(self):
         """현재 상태에 맞춰 애니메이션을 재생합니다."""
         now = pygame.time.get_ticks()
@@ -114,18 +113,27 @@ class Player(pygame.sprite.Sprite):
         current_frames = []
 
         if is_looping:
+            # (Idle, Walk)
             current_frames = self.animations.get(self.current_state)
+            # (Blocking)
             if self.current_state == 'Blocking':
                 if 'Blocking' in self.defenses and self.defenses['Blocking'].frames:
                     current_frames = self.defenses['Blocking'].frames
                 else:
                     current_frames = self.animations.get('Idle')
+
             if not current_frames:
                 current_frames = self.animations.get('Idle')
         else:
+            # [수정 4] (공격, 효과, 기타 상태)
             if self.current_state in self.attacks:
+                # (Jab, Straight, Uppercut)
                 current_frames = self.attacks[self.current_state].frames
+            elif self.current_state in self.effects:
+                # (Dizzy)
+                current_frames = self.effects[self.current_state].frames
             else:
+                # (KO 등)
                 current_frames = self.animations.get(self.current_state, self.animations['Idle'])
 
         if not current_frames:
@@ -136,12 +144,24 @@ class Player(pygame.sprite.Sprite):
         if is_looping:
             self.current_frame = (self.current_frame + 1) % len(current_frames)
         else:
+            # (한 번만 재생되는 애니메이션: 공격, Dizzy, KO 등)
             self.current_frame += 1
             if self.current_frame >= len(current_frames):
-                self.current_state = 'Idle'
-                self.current_frame = 0
+
+                # 'Dizzy' 애니메이션이 끝났는지 확인
+                if self.current_state == 'Dizzy':
+                    self.current_state = 'Idle'
+                    self.current_frame = 0
+                    self.is_awakened = True  # <-- 각성 상태 활성화!
+                    print("AWAKENING ACTIVATED!")
+                else:
+                    self.current_state = 'Idle'
+                    self.current_frame = 0
 
         # --- 이미지 업데이트 ---
+        if not self.is_alive and self.current_state != 'KO':
+            self.current_state = 'Idle'
+
         if self.current_state == 'Idle':
             self.image = self.animations['Idle'][self.current_frame % len(self.animations['Idle'])]
         else:
@@ -159,7 +179,9 @@ class Player(pygame.sprite.Sprite):
 
     def update(self):
         """플레이어 입력 처리 및 상태 업데이트."""
-        if not self.is_alive:
+        # 'Dizzy' 중이거나 'KO' 상태면 조작 불가
+        if not self.is_alive or self.current_state == 'Dizzy':
+            self.animate()  # 애니메이션은 재생
             return
 
         keys = pygame.key.get_pressed()
@@ -206,11 +228,22 @@ class Player(pygame.sprite.Sprite):
         if not self.is_alive: return
 
         self.hp -= damage
+
+        # 1. KO 판정
         if self.hp <= 0:
             self.hp = 0
             self.is_alive = False
-            self.current_state = 'KO'
+            self.current_state = 'KO'  # (KO 애니메이션 폴더 필요)
             self.current_frame = 0
             print("KO!")
+
+        # 2. 각성(Dizzy) 판정
+        elif self.hp <= 30 and not self.is_awakened:
+            self.current_state = 'Dizzy'  # Dizzy 애니메이션 재생
+            self.current_frame = 0
+            self.has_hit = False
+            print("HP low! Triggering Dizzy...")
+
+        # 3. 일반 피격
         else:
             print(f"Hit! HP left: {self.hp}")
