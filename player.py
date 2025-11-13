@@ -8,8 +8,12 @@ from defenses import Defense
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, start_pos, controls, anim_folders, scale_factor=1.0, flip_images=False):
+    # [수정 1] __init__에 screen_width를 받도록 추가
+    def __init__(self, start_pos, controls, anim_folders, screen_width, scale_factor=1.0, flip_images=False):
         super().__init__()
+
+        # --- [수정 2] screen_width를 self.screen_width에 저장 ---
+        self.screen_width = screen_width
 
         # --- 1. 기본 애니메이션 로딩 ---
         self.animations = {}
@@ -20,34 +24,28 @@ class Player(pygame.sprite.Sprite):
             anim_folders['Walk'], scale_factor, flip_images
         )
 
-        # --- [수정] 1-2. 공격 모션 로딩 (Attack 클래스 업그레이드) ---
+        # --- 1-2. 공격 모션 로딩 ---
         self.attacks = {}
-
-        # 잽(Jab): 1번 프레임에, (50, 20) 위치에 40x30 크기로 타격 (예시값)
         self.attacks['Jab'] = Attack(
             folder_name=anim_folders.get('Jab', 'Jab'),
             damage=10,
-            hit_frame=1,  # 잽은 1번 프레임(0번 다음)에 타격
-            hitbox_rect=pygame.Rect(50, 20, 40, 30),  # (x, y, w, h) - 캐릭터 기준 상대 위치
+            hit_frame=1,
+            hitbox_rect=pygame.Rect(50, 20, 40, 30),
             scale_factor=scale_factor,
             flip_images=flip_images
         )
-
-        # 스트레이트(Straight): 2번 프레임에, (60, 25) 위치에 50x30 크기로 타격 (예시값)
         self.attacks['Straight'] = Attack(
             folder_name=anim_folders.get('Straight', 'Straight'),
             damage=20,
-            hit_frame=2,  # 스트레이트는 2번 프레임에 타격
+            hit_frame=2,
             hitbox_rect=pygame.Rect(60, 25, 50, 30),
             scale_factor=scale_factor,
             flip_images=flip_images
         )
-
-        # 어퍼컷(Uppercut): 1번 프레임에, (40, 0) 위치에 40x50 크기로 타격 (예시값)
         self.attacks['Uppercut'] = Attack(
             folder_name=anim_folders.get('Uppercut', 'Uppercut'),
-            damage=0,  # (어차피 KO 로직)
-            hit_frame=1,  # 어퍼컷은 1번 프레임에 타격
+            damage=0,
+            hit_frame=1,
             hitbox_rect=pygame.Rect(40, 0, 40, 50),
             scale_factor=scale_factor,
             flip_images=flip_images
@@ -158,4 +156,64 @@ class Player(pygame.sprite.Sprite):
 
         # --- 위치 고정 ---
         old_midbottom = self.rect.midbottom
-        self.rect = self.image
+        self.rect = self.image.get_rect()
+        self.rect.midbottom = old_midbottom
+
+    def update(self):
+        """플레이어 입력 처리 및 상태 업데이트."""
+        if not self.is_alive:
+            return
+
+        keys = pygame.key.get_pressed()
+
+        is_busy = self.current_state not in self.looping_states
+        if is_busy:
+            self.animate()
+            return
+
+        # --- 입력 우선순위: 공격 > 방어 > 이동 ---
+        if keys[self.key_jab]:
+            self.current_state = 'Jab'
+            self.current_frame = 0
+            self.has_hit = False
+        elif keys[self.key_straight]:
+            self.current_state = 'Straight'
+            self.current_frame = 0
+            self.has_hit = False
+        elif keys[self.key_uppercut]:
+            self.current_state = 'Uppercut'
+            self.current_frame = 0
+            self.has_hit = False
+        elif keys[self.key_block]:
+            self.current_state = 'Blocking'
+            self.current_frame = 0
+        else:
+            self.is_moving = False
+            if keys[self.key_left]:
+                self.rect.x -= self.speed
+                self.is_moving = True
+            if keys[self.key_right]:
+                self.rect.x += self.speed
+                self.is_moving = True
+            self.current_state = 'Walk' if self.is_moving else 'Idle'
+
+        # --- [수정 3] 화면 경계 처리 ---
+        if self.rect.left < 0: self.rect.left = 0
+        # `SCREEN_WIDTH` 대신 `self.screen_width`를 사용
+        if self.rect.right > self.screen_width: self.rect.right = self.screen_width
+
+        self.animate()
+
+    def take_damage(self, damage):
+        """피해를 입고 체력을 감소시킵니다."""
+        if not self.is_alive: return
+
+        self.hp -= damage
+        if self.hp <= 0:
+            self.hp = 0
+            self.is_alive = False
+            self.current_state = 'KO'
+            self.current_frame = 0
+            print("KO!")
+        else:
+            print(f"Hit! HP left: {self.hp}")

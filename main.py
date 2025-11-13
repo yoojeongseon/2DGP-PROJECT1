@@ -9,7 +9,7 @@ pygame.init()
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("2DGP 프로젝트 - 5주차 (최종 리팩토링)")
+pygame.display.set_caption("2DGP 프로젝트 - 5주차 (버그 수정)")
 clock = pygame.time.Clock()
 
 # --- 색상 정의 ---
@@ -42,13 +42,15 @@ P1_ANIM_FOLDERS = {
     'Jab': 'PunchLeft', 'Straight': 'PunchRight', 'Uppercut': 'PunchUp',
     'Blocking': 'Blocking'
 }
-player1 = Player(P1_START_POS, P1_CONTROLS, P1_ANIM_FOLDERS, P1_SCALE, flip_images=False)
+# [수정] Player 생성 시 SCREEN_WIDTH 값을 넘겨줍니다.
+player1 = Player(P1_START_POS, P1_CONTROLS, P1_ANIM_FOLDERS, SCREEN_WIDTH, P1_SCALE, flip_images=False)
 
 P2_SCALE = 0.5
 P2_START_POS = (SCREEN_WIDTH * 3 // 4, SCREEN_HEIGHT - 30)
 P2_CONTROLS = (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_u, pygame.K_i, pygame.K_o, pygame.K_DOWN)
 P2_ANIM_FOLDERS = P1_ANIM_FOLDERS
-player2 = Player(P2_START_POS, P2_CONTROLS, P2_ANIM_FOLDERS, P2_SCALE, flip_images=True)
+# [수정] Player 생성 시 SCREEN_WIDTH 값을 넘겨줍니다.
+player2 = Player(P2_START_POS, P2_CONTROLS, P2_ANIM_FOLDERS, SCREEN_WIDTH, P2_SCALE, flip_images=True)
 
 all_sprites = pygame.sprite.Group()
 all_sprites.add(player1)
@@ -65,15 +67,15 @@ while running:
     # 2) 게임 로직 업데이트
     all_sprites.update()
 
-    # --- [수정] 3. 타격 판정 로직 (hit_frame 사용) ---
+    # --- 3. 타격 판정 로직 ---
 
     # P1이 P2를 때렸는지 검사
     attack_name_p1 = player1.current_state
-    current_attack_p1 = player1.attacks.get(attack_name_p1)  # 현재 공격 객체 가져오기
+    current_attack_p1 = player1.attacks.get(attack_name_p1)
 
-    if (current_attack_p1 and  # P1이 공격 상태이고
-            player1.current_frame == current_attack_p1.hit_frame and  # [수정] 정해진 타격 프레임인가?
-            pygame.sprite.collide_rect(player1, player2) and  # (나중에 hitbox로 변경 가능)
+    if (current_attack_p1 and
+            player1.current_frame == current_attack_p1.hit_frame and
+            pygame.sprite.collide_rect(player1, player2) and
             player1.has_hit == False):
 
         player1.has_hit = True
@@ -92,7 +94,7 @@ while running:
     current_attack_p2 = player2.attacks.get(attack_name_p2)
 
     if (current_attack_p2 and
-            player2.current_frame == current_attack_p2.hit_frame and  # [수정]
+            player2.current_frame == current_attack_p2.hit_frame and
             pygame.sprite.collide_rect(player2, player1) and
             player2.has_hit == False):
 
