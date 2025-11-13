@@ -2,14 +2,16 @@
 
 import pygame
 import os
-from player import Player  # <-- player.py 파일에서 Player 클래스를 가져옵니다.
+from player import Player
+# [수정] collisions.py 에서 타격 판정 함수를 가져옵니다.
+from collisions import handle_player_collisions
 
 # --- Pygame 초기화 및 설정 ---
 pygame.init()
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("2DGP 프로젝트 - 5주차 (KO 속성 리팩토링)")
+pygame.display.set_caption("2DGP 프로젝트 - (Collisions 분리)")
 clock = pygame.time.Clock()
 
 # --- 색상 정의 ---
@@ -17,7 +19,6 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
-
 
 # --- UI 함수 (체력 바) ---
 def draw_health_bar(surface, x, y, hp, max_hp):
@@ -31,7 +32,6 @@ def draw_health_bar(surface, x, y, hp, max_hp):
     fill_rect = pygame.Rect(x, y, fill_length, BAR_HEIGHT)
     pygame.draw.rect(surface, RED, outline_rect)
     pygame.draw.rect(surface, GREEN, fill_rect)
-
 
 # --- 4. 게임 객체 생성 ---
 P1_SCALE = 0.5
@@ -65,55 +65,14 @@ while running:
     # 2) 게임 로직 업데이트
     all_sprites.update()
 
-    # --- 3. 타격 판정 로직 (KO 속성 사용) ---
-
-    # P1이 P2를 때렸는지 검사
-    attack_name_p1 = player1.current_state
-    current_attack_p1 = player1.attacks.get(attack_name_p1)
-
-    if (current_attack_p1 and
-            player1.current_frame == current_attack_p1.hit_frame and
-            pygame.sprite.collide_rect(player1, player2) and
-            player1.has_hit == False and
-            player2.is_alive):
-
-        player1.has_hit = True
-
-        if player2.current_state == 'Blocking':
-            print("P2 Blocked!")
-        else:
-            if current_attack_p1.is_ko_move:
-                player2.take_damage(player2.max_hp)
-            else:
-                damage = current_attack_p1.damage
-                player2.take_damage(damage)
-
-    # P2가 P1을 때렸는지 검사
-    attack_name_p2 = player2.current_state
-    current_attack_p2 = player2.attacks.get(attack_name_p2)
-
-    if (current_attack_p2 and
-            player2.current_frame == current_attack_p2.hit_frame and
-            pygame.sprite.collide_rect(player2, player1) and
-            player2.has_hit == False and
-            player1.is_alive):
-
-        player2.has_hit = True
-
-        if player1.current_state == 'Blocking':
-            print("P1 Blocked!")
-        else:
-            if current_attack_p2.is_ko_move:
-                player1.take_damage(player1.max_hp)
-            else:
-                damage = current_attack_p2.damage
-                player1.take_damage(damage)
+    # --- [수정] 3. 타격 판정 로직 ---
+    # 복잡한 if문 대신, collisions 파일의 함수를 단 한번 호출합니다.
+    handle_player_collisions(player1, player2)
 
     # 4) 화면 그리기
     screen.fill(BLACK)
     all_sprites.draw(screen)
     draw_health_bar(screen, 20, 20, player1.hp, player1.max_hp)
-    # [수정] 오타("Dra")가 삭제되었습니다.
     draw_health_bar(screen, SCREEN_WIDTH - 320, 20, player2.hp, player2.max_hp)
 
     # 5) 화면 업데이트
