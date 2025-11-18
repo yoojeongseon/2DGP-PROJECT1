@@ -5,7 +5,7 @@ import os
 from attacks import Attack
 from utils import load_animation_frames
 from defenses import Defense
-from effects import Effect  # <-- [수정 1] effects.py 에서 Effect 클래스 가져오기
+from effects import Effect  # <-- effects.py 에서 Effect 클래스 가져오기
 
 
 class Player(pygame.sprite.Sprite):
@@ -22,8 +22,8 @@ class Player(pygame.sprite.Sprite):
         self.animations['Walk'] = load_animation_frames(
             anim_folders['Walk'], scale_factor, flip_images
         )
-        # [수정 2] 'Dizzy'를 self.animations에서 제거
-        # (나중에 KO 폴더는 여기에 추가)
+        # (KO 애니메이션은 나중에 여기에 추가)
+        # self.animations['KO'] = ...
 
         # --- 1-2. 공격 모션 로딩 ---
         self.attacks = {}
@@ -51,7 +51,7 @@ class Player(pygame.sprite.Sprite):
             flip_images
         )
 
-        # --- [수정 3] 1-4. 효과(Effect) 로딩 ---
+        # --- 1-4. 효과(Effect) 로딩 ---
         self.effects = {}
         self.effects['Dizzy'] = Effect(
             anim_folders.get('Dizzy', 'Dizzy'),  # 'Dizzy' 폴더 사용
@@ -125,7 +125,7 @@ class Player(pygame.sprite.Sprite):
             if not current_frames:
                 current_frames = self.animations.get('Idle')
         else:
-            # [수정 4] (공격, 효과, 기타 상태)
+            # (공격, 효과, 기타 상태)
             if self.current_state in self.attacks:
                 # (Jab, Straight, Uppercut)
                 current_frames = self.attacks[self.current_state].frames
