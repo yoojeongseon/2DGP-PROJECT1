@@ -1,76 +1,74 @@
-# (파일: collisions.py)
+# (파일: collisions.py - 최종 디버그: 좌표 출력)
 
 import pygame
 
 
 def handle_player_collisions(player1, player2):
     """
-    두 플레이어 간의 타격 판정을 처리합니다.
-    (각성 효과: 공격력 1.5배 적용)
-    (Dizzy 상태: 무적 적용)
+    플레이어 간의 타격 판정(Hitbox/Hurtbox)을 처리합니다.
+    [수정] 충돌 실패 시(Miss) 실제 좌표를 출력합니다.
     """
 
-    # 각성 시 데미지 배율
-    AWAKEN_MULTIPLIER = 1.5
+    # --- 1. P1이 P2를 공격하는 판정 ---
+    p1_hitbox = player1.get_absolute_hitbox()
 
-    # --- P1이 P2를 때렸는지 검사 ---
-    attack_name_p1 = player1.current_state
-    current_attack_p1 = player1.attacks.get(attack_name_p1)
+    if p1_hitbox:
+        # print(f"DEBUG: P1 Hitbox Active! (State: {player1.current_state}, Frame: {player1.current_frame})") # (너무 많으니 잠시 주석 처리)
 
-    if (current_attack_p1 and
-            player1.current_frame == current_attack_p1.hit_frame and
-            pygame.sprite.collide_rect(player1, player2) and
-            player1.has_hit == False and
-            player2.is_alive):
+        if not player1.has_hit:
+            # print(f"DEBUG: P1 'has_hit' is False. (Can Damage)") # (너무 많으니 잠시 주석 처리)
 
-        player1.has_hit = True
+            if player2.current_state != 'Blocking':
+                # print(f"DEBUG: P2 is NOT Blocking. (State: {player2.current_state})") # (너무 많으니 잠시 주석 처리)
 
-        # [수정] P2가 방어 중이거나 'Dizzy' (무적) 상태인지 확인
-        if player2.current_state == 'Blocking':
-            print("P2 Blocked!")
-        elif player2.current_state == 'Dizzy':
-            print("P2 is Dizzy! (Invulnerable)")
-            # 무적이므로 아무것도 하지 않음
-        else:
-            # 방어/무적이 아니면 데미지 처리
-            if current_attack_p1.is_ko_move:
-                player2.take_damage(player2.max_hp)
+                if p1_hitbox.colliderect(player2.hurtbox_absolute):
+
+                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    print("!!!!!!!! DEBUG: P1 -> P2 HIT SUCCESS !!!!!!!!")
+                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+                    attack = player1.attacks[player1.current_state]
+                    player2.take_damage(attack.damage)
+                    player1.has_hit = True
+
+                else:
+                    # [수정] P1 Hitbox와 P2 Hurtbox의 실제 좌표를 출력
+                    print("--- DEBUG: MISS! ---")
+                    print(f"   P1 Hitbox: {p1_hitbox}")
+                    print(f"   P2 Hurtbox: {player2.hurtbox_absolute}")
+                    print("--------------------")
+
             else:
-                damage = current_attack_p1.damage
+                print("DEBUG: P2 IS BLOCKING!")
 
-                if player1.is_awakened:
-                    damage *= AWAKEN_MULTIPLIER
-                    print("P1 Awakened Strike!")
-
-                player2.take_damage(damage)
-
-    # --- P2가 P1을 때렸는지 검사 ---
-    attack_name_p2 = player2.current_state
-    current_attack_p2 = player2.attacks.get(attack_name_p2)
-
-    if (current_attack_p2 and
-            player2.current_frame == current_attack_p2.hit_frame and
-            pygame.sprite.collide_rect(player2, player1) and
-            player2.has_hit == False and
-            player1.is_alive):
-
-        player2.has_hit = True
-
-        # [수정] P1이 방어 중이거나 'Dizzy' (무적) 상태인지 확인
-        if player1.current_state == 'Blocking':
-            print("P1 Blocked!")
-        elif player1.current_state == 'Dizzy':
-            print("P1 is Dizzy! (Invulnerable)")
-            # 무적이므로 아무것도 하지 않음
         else:
-            # 방어/무적이 아니면 데미지 처리
-            if current_attack_p2.is_ko_move:
-                player1.take_damage(player1.max_hp)
+            print("DEBUG: P1 'has_hit' is True. (Preventing multi-hit)")
+
+    # --- 2. P2가 P1을 공격하는 판정 (P2도 동일하게 수정) ---
+    p2_hitbox = player2.get_absolute_hitbox()
+
+    if p2_hitbox:
+        if not player2.has_hit:
+            if player1.current_state != 'Blocking':
+                if p2_hitbox.colliderect(player1.hurtbox_absolute):
+
+                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    print("!!!!!!!! DEBUG: P2 -> P1 HIT SUCCESS !!!!!!!!")
+                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+                    attack = player2.attacks[player2.current_state]
+                    player1.take_damage(attack.damage)
+                    player2.has_hit = True
+
+                else:
+                    # [수정] P2 Hitbox와 P1 Hurtbox의 실제 좌표를 출력
+                    print("--- DEBUG: MISS! (P2 Attack) ---")
+                    print(f"   P2 Hitbox: {p2_hitbox}")
+                    print(f"   P1 Hurtbox: {player1.hurtbox_absolute}")
+                    print("--------------------------------")
+
             else:
-                damage = current_attack_p2.damage
+                print("DEBUG: P1 IS BLOCKING!")
 
-                if player2.is_awakened:
-                    damage *= AWAKEN_MULTIPLIER
-                    print("P2 Awakened Strike!")
-
-                player1.take_damage(damage)
+        else:
+            print("DEBUG: P2 'has_hit' is True. (Preventing multi-hit)")
