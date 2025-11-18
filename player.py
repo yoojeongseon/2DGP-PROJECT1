@@ -1,4 +1,4 @@
-# (파일: player.py - 각성 속도 적용)
+# (파일: player.py - force_ko 메서드 추가)
 
 import pygame
 import os
@@ -36,7 +36,7 @@ class Player(pygame.sprite.Sprite):
         self.attacks['Uppercut'] = Attack(
             folder_name=anim_folders.get('Uppercut', 'Uppercut'),
             damage=0, hit_frame=1, hitbox_rect=pygame.Rect(170, 120, 55, 50),  # <-- 사용자님 값
-            scale_factor=scale_factor, flip_images=flip_images, is_ko_move=True
+            scale_factor=scale_factor, flip_images=flip_images, is_ko_move=True  # <-- KO 펀치
         )
 
         # --- 1-3. 방어 모션 로딩 ---
@@ -53,7 +53,7 @@ class Player(pygame.sprite.Sprite):
         self.current_state = 'Idle'
         self.current_frame = 0
         self.last_update_time = pygame.time.get_ticks()
-        # --- [수정] 기본 애니메이션 딜레이 값 ---
+        # --- 각성 속도용 기본 딜레이 ---
         self.base_animation_delay = 100
 
         # --- 3. 이미지 및 위치 ---
@@ -70,8 +70,7 @@ class Player(pygame.sprite.Sprite):
         self.speed = 5
         self.is_moving = False
 
-        # --- [수정] 몸통 판정(Hurtbox) 정의 ---
-        # (x, y, w, h) - P1(원본) 기준으로만 정의합니다.
+        # --- P2 플립 버그 수정된 Hurtbox 로직 ---
         self.hurtbox_relative_P1 = pygame.Rect(150, 100, 40, 90)  # <-- 사용자님 값
 
         self.hurtbox_absolute = self.hurtbox_relative_P1.copy()
@@ -93,19 +92,16 @@ class Player(pygame.sprite.Sprite):
         self.has_hit = False
         self.is_awakened = False
 
-    # --- [수정] animate 메서드에 각성 속도 로직 추가 ---
+    # --- animate 메서드 (각성 속도 포함) ---
     def animate(self):
 
-        # --- [수정] 각성 상태(is_awakened)이면, 딜레이를 1.5로 나눕니다 (더 빠르게) ---
         if self.is_awakened:
-            current_delay = int(self.base_animation_delay / 1.5)  # 1.5배 빨라짐
+            current_delay = int(self.base_animation_delay / 1.5)
         else:
-            current_delay = self.base_animation_delay  # 기본 속도
-        # --- [수정 끝] ---
+            current_delay = self.base_animation_delay
 
         now = pygame.time.get_ticks()
 
-        # --- [수정] self.base_animation_delay 대신 current_delay 사용 ---
         if now - self.last_update_time <= current_delay:
             return
         self.last_update_time = now
@@ -214,7 +210,7 @@ class Player(pygame.sprite.Sprite):
 
                 self.animate()
 
-        # --- [수정] update 마지막에 hurtbox 위치 갱신 (P2 플립 로직 포함) ---
+        # --- P2 플립 버그 수정된 Hurtbox 갱신 ---
         current_hurtbox_relative = self.hurtbox_relative_P1.copy()
         if self.flip_images:
             current_hurtbox_relative.x = self.rect.width - current_hurtbox_relative.x - current_hurtbox_relative.width
@@ -243,6 +239,19 @@ class Player(pygame.sprite.Sprite):
             print("HP low! Triggering Dizzy...")
         else:
             print(f"Hit! HP left: {self.hp}")
+
+    # --- [수정] KO 펀치 전용 메서드 추가 ---
+    def force_ko(self):
+        """HP와 상관없이 즉시 KO 상태가 됩니다."""
+        if not self.is_alive: return  # 이미 KO 상태면 무시
+
+        print("KO PUNCH LANDED!")
+        self.hp = 0
+        self.is_alive = False
+        self.current_state = 'KO'
+        self.current_frame = 0
+
+    # --- [수정 끝] ---
 
     def get_absolute_hitbox(self):
         """현재 공격의 절대 좌표 hitbox를 반환합니다. 공격 중이 아니면 None을 반환."""
