@@ -1,84 +1,87 @@
-# (파일: collisions.py - KO 펀치 로직 적용)
+# (파일: collisions.py)
 
 import pygame
 
 
 def handle_player_collisions(player1, player2):
     """
-    플레이어 간의 타격 판정(Hitbox/Hurtbox)을 처리합니다.
-    [수정] KO 펀치(is_ko_move)를 확인합니다.
+    두 플레이어 간의 타격 판정을 처리합니다.
+    (각성 효과: 공격력 1.5배 적용)
+    (Dizzy 상태: 무적 적용 - 데미지 입지 않음)
     """
 
-    # --- 1. P1이 P2를 공격하는 판정 ---
-    p1_hitbox = player1.get_absolute_hitbox()
+    # 각성 시 데미지 배율
+    AWAKEN_MULTIPLIER = 1.5
 
-    if p1_hitbox:
-        if not player1.has_hit:
-            if player2.current_state != 'Blocking':
-                if p1_hitbox.colliderect(player2.hurtbox_absolute):
+    # --- [1] P1이 P2를 때렸는지 검사 ---
+    attack_name_p1 = player1.current_state
+    current_attack_p1 = player1.attacks.get(attack_name_p1)
 
-                    attack = player1.attacks[player1.current_state]
+    # P1의 '주먹' hitbox를 가져옴
+    absolute_hitbox_p1 = player1.get_absolute_hitbox()
 
-                    # --- [수정] KO 펀치인지, 일반 공격인지 확인 ---
-                    if attack.is_ko_move:
-                        player2.force_ko()  # 즉시 KO 메서드 호출
-                    else:
-                        player2.take_damage(attack.damage)  # 일반 데미지
-                    # --- [수정 끝] ---
+    if (absolute_hitbox_p1 and
+            player1.has_hit == False and
+            player2.is_alive):
 
-                    player1.has_hit = True
+        # 충돌 검사
+        if absolute_hitbox_p1.colliderect(player2.hurtbox_absolute):
 
-                    # (디버그 프린트)
-                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                    print("!!!!!!!! DEBUG: P1 -> P2 HIT SUCCESS !!!!!!!!")
-                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            player1.has_hit = True  # 때렸음으로 표시
 
-                else:
-                    # (디버그 프린트 - Miss)
-                    print("--- DEBUG: MISS! ---")
-                    print(f"   P1 Hitbox: {p1_hitbox}")
-                    print(f"   P2 Hurtbox: {player2.hurtbox_absolute}")
-                    print("--------------------")
+            # ▼▼▼ [핵심 수정] P2 상태 확인 ▼▼▼
+            if player2.current_state == 'Blocking':
+                print("P2 Blocked!")  # 방어 성공
+
+            elif player2.current_state == 'Dizzy':
+                print("P2 is Invincible! (Dizzy)")  # 무적 상태 (데미지 없음)
 
             else:
-                print("DEBUG: P2 IS BLOCKING!")
-
-        else:
-            print("DEBUG: P1 'has_hit' is True. (Preventing multi-hit)")
-
-    # --- 2. P2가 P1을 공격하는 판정 (P2도 동일하게 수정) ---
-    p2_hitbox = player2.get_absolute_hitbox()
-
-    if p2_hitbox:
-        if not player2.has_hit:
-            if player1.current_state != 'Blocking':
-                if p2_hitbox.colliderect(player1.hurtbox_absolute):
-
-                    attack = player2.attacks[player2.current_state]
-
-                    # --- [수정] KO 펀치인지, 일반 공격인지 확인 ---
-                    if attack.is_ko_move:
-                        player1.force_ko()  # 즉시 KO 메서드 호출
-                    else:
-                        player1.take_damage(attack.damage)  # 일반 데미지
-                    # --- [수정 끝] ---
-
-                    player2.has_hit = True
-
-                    # (디버그 프린트)
-                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                    print("!!!!!!!! DEBUG: P2 -> P1 HIT SUCCESS !!!!!!!!")
-                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
+                # 방어도, 무적도 아닐 때만 데미지 적용
+                if current_attack_p1.is_ko_move:
+                    player2.take_damage(player2.max_hp)
                 else:
-                    # (디버그 프린트 - Miss)
-                    print("--- DEBUG: MISS! (P2 Attack) ---")
-                    print(f"   P2 Hitbox: {p2_hitbox}")
-                    print(f"   P1 Hurtbox: {player1.hurtbox_absolute}")
-                    print("--------------------------------")
+                    damage = current_attack_p1.damage
+
+                    # P1 각성 시 공격력 증가
+                    if player1.is_awakened:
+                        damage *= AWAKEN_MULTIPLIER
+                        print("P1 Awakened Strike!")
+
+                    player2.take_damage(damage)
+
+    # --- [2] P2가 P1을 때렸는지 검사 ---
+    attack_name_p2 = player2.current_state
+    current_attack_p2 = player2.attacks.get(attack_name_p2)
+
+    # P2의 '주먹' hitbox를 가져옴
+    absolute_hitbox_p2 = player2.get_absolute_hitbox()
+
+    if (absolute_hitbox_p2 and
+            player2.has_hit == False and
+            player1.is_alive):
+
+        if absolute_hitbox_p2.colliderect(player1.hurtbox_absolute):
+
+            player2.has_hit = True
+
+            # ▼▼▼ [핵심 수정] P1 상태 확인 ▼▼▼
+            if player1.current_state == 'Blocking':
+                print("P1 Blocked!")  # 방어 성공
+
+            elif player1.current_state == 'Dizzy':
+                print("P1 is Invincible! (Dizzy)")  # 무적 상태 (데미지 없음)
 
             else:
-                print("DEBUG: P1 IS BLOCKING!")
+                # 방어도, 무적도 아닐 때만 데미지 적용
+                if current_attack_p2.is_ko_move:
+                    player1.take_damage(player1.max_hp)
+                else:
+                    damage = current_attack_p2.damage
 
-        else:
-            print("DEBUG: P2 'has_hit' is True. (Preventing multi-hit)")
+                    # P2 각성 시 공격력 증가
+                    if player2.is_awakened:
+                        damage *= AWAKEN_MULTIPLIER
+                        print("P2 Awakened Strike!")
+
+                    player1.take_damage(damage)
