@@ -7,11 +7,11 @@ from collisions import handle_player_collisions
 
 # --- Pygame 초기화 및 설정 ---
 pygame.init()
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1080
+SCREEN_HEIGHT = 720
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 # [수정] 캡션에서 (디버그 모드) 제거
-pygame.display.set_caption("2DGP 프로젝트 - 각성 효과")
+pygame.display.set_caption("2DGP 프로젝트")
 clock = pygame.time.Clock()
 
 # --- 색상 정의 ---
