@@ -1,19 +1,17 @@
 # (파일: collisions.py)
 
 import pygame
-from visual_effects import VisualEffect  # <-- 방금 만든 클래스 가져오기
+from visual_effects import VisualEffect  # visual_effects.py 파일 필요
 
 
 def handle_player_collisions(player1, player2, effect_group, effect_frames):
     """
     타격 판정 및 이펙트 생성 함수
-    - effect_group: 이펙트 스프라이트를 담을 그룹
-    - effect_frames: 이펙트 이미지들이 담긴 딕셔너리
     """
 
     AWAKEN_MULTIPLIER = 1.5
 
-    # --- 1. P1 공격 판정 ---
+    # --- 1. P1이 P2를 때렸는지 검사 ---
     absolute_hitbox_p1 = player1.get_absolute_hitbox()
 
     if (absolute_hitbox_p1 and
@@ -23,25 +21,25 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames):
         if absolute_hitbox_p1.colliderect(player2.hurtbox_absolute):
             player1.has_hit = True
 
-            # 충돌 위치 (이펙트 생성 위치)
-            # 대략 두 사각형의 중간 지점
+            # 이펙트 생성 위치 (충돌 지점)
             hit_pos = (
                 (absolute_hitbox_p1.centerx + player2.hurtbox_absolute.centerx) // 2,
                 (absolute_hitbox_p1.centery + player2.hurtbox_absolute.centery) // 2
             )
 
+            # P2 상태 확인
             if player2.current_state == 'Blocking':
                 print("P2 Blocked!")
-                # [이펙트] 방어 이펙트 생성
+                # [이펙트] 방어
                 if 'BlockEffect' in effect_frames:
                     effect = VisualEffect(hit_pos, effect_frames['BlockEffect'])
                     effect_group.add(effect)
 
             elif player2.current_state == 'Dizzy':
-                print("P2 is Invincible!")
+                print("P2 is Invincible! (Dizzy)")
 
             else:
-                # [이펙트] 타격 이펙트 생성
+                # [이펙트] 타격
                 if 'HitEffect' in effect_frames:
                     effect = VisualEffect(hit_pos, effect_frames['HitEffect'])
                     effect_group.add(effect)
@@ -55,7 +53,7 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames):
                     if player1.is_awakened: damage *= AWAKEN_MULTIPLIER
                     player2.take_damage(damage)
 
-    # --- 2. P2 공격 판정 ---
+    # --- 2. P2가 P1을 때렸는지 검사 ---
     absolute_hitbox_p2 = player2.get_absolute_hitbox()
 
     if (absolute_hitbox_p2 and
@@ -70,18 +68,19 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames):
                 (absolute_hitbox_p2.centery + player1.hurtbox_absolute.centery) // 2
             )
 
+            # P1 상태 확인
             if player1.current_state == 'Blocking':
                 print("P1 Blocked!")
-                # [이펙트] 방어 이펙트 생성
+                # [이펙트] 방어
                 if 'BlockEffect' in effect_frames:
                     effect = VisualEffect(hit_pos, effect_frames['BlockEffect'])
                     effect_group.add(effect)
 
             elif player1.current_state == 'Dizzy':
-                print("P1 is Invincible!")
+                print("P1 is Invincible! (Dizzy)")
 
             else:
-                # [이펙트] 타격 이펙트 생성
+                # [이펙트] 타격
                 if 'HitEffect' in effect_frames:
                     effect = VisualEffect(hit_pos, effect_frames['HitEffect'])
                     effect_group.add(effect)

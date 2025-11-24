@@ -1,17 +1,17 @@
-# (파일: main.py - 최종 버전)
+# (파일: main.py)
 
 import pygame
 import os
 from player import Player
 from collisions import handle_player_collisions
+from utils import load_animation_frames # [추가] 이펙트 이미지 로드용
 
 # --- Pygame 초기화 및 설정 ---
 pygame.init()
 SCREEN_WIDTH = 1080
 SCREEN_HEIGHT = 720
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-# [수정] 캡션에서 (디버그 모드) 제거
-pygame.display.set_caption("2DGP 프로젝트")
+pygame.display.set_caption("2DGP 프로젝트 (이펙트 적용)")
 clock = pygame.time.Clock()
 
 # --- 색상 정의 ---
@@ -42,11 +42,22 @@ def draw_health_bar(surface, x, y, hp, max_hp, is_awakened):
 
 
 # --- 4. 게임 객체 생성 ---
+
+# [추가] 이펙트 이미지 로드 (프로젝트 폴더에 BlockEffect, HitEffect 폴더가 있어야 함)
+# scale_factor는 이펙트 크기에 맞춰 조절하세요.
+effect_frames = {
+    'BlockEffect': load_animation_frames('BlockEffect', scale_factor=2.0),
+    'HitEffect': load_animation_frames('HitEffect', scale_factor=2.0)
+}
+
+# [추가] 이펙트 스프라이트 그룹
+effect_group = pygame.sprite.Group()
+
+# 플레이어 생성
 P1_SCALE = 0.5
 P1_START_POS = (SCREEN_WIDTH // 4, SCREEN_HEIGHT - 30)
 P1_CONTROLS = (pygame.K_a, pygame.K_d, pygame.K_w, pygame.K_e, pygame.K_r, pygame.K_s)
 
-# 'Dizzy'와 'KO' 폴더 매핑 추가
 P1_ANIM_FOLDERS = {
     'Idle': 'Idle', 'Walk': 'Walk',
     'Jab': 'PunchLeft', 'Straight': 'PunchRight', 'Uppercut': 'PunchUp',
@@ -76,19 +87,19 @@ while running:
 
     # 2) 게임 로직 업데이트
     all_sprites.update()
+    effect_group.update() # [추가] 이펙트 애니메이션 업데이트
 
-    # 3) 타격 판정 로직
-    handle_player_collisions(player1, player2)
+    # 3) 타격 판정 로직 (이펙트 그룹과 프레임을 함께 전달)
+    handle_player_collisions(player1, player2, effect_group, effect_frames)
 
     # 4) 화면 그리기
     screen.fill(BLACK)
     all_sprites.draw(screen)
+    effect_group.draw(screen) # [추가] 이펙트 그리기
 
     # 체력 바 그리기
     draw_health_bar(screen, 20, 20, player1.hp, player1.max_hp, player1.is_awakened)
     draw_health_bar(screen, SCREEN_WIDTH - 320, 20, player2.hp, player2.max_hp, player2.is_awakened)
-
-    # --- [수정] 판정 박스 시각화 (디버그 코드) 모두 제거됨 ---
 
     # 5) 화면 업데이트
     pygame.display.flip()
