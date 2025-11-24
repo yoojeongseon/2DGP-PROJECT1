@@ -30,18 +30,18 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames):
             # P2 상태 확인
             if player2.current_state == 'Blocking':
                 print("P2 Blocked!")
-                # [이펙트] 방어
+                # [이펙트] 방어 - P1의 방향(flip_images) 적용
                 if 'BlockEffect' in effect_frames:
-                    effect = VisualEffect(hit_pos, effect_frames['BlockEffect'])
+                    effect = VisualEffect(hit_pos, effect_frames['BlockEffect'], flip=player1.flip_images)
                     effect_group.add(effect)
 
             elif player2.current_state == 'Dizzy':
                 print("P2 is Invincible! (Dizzy)")
 
             else:
-                # [이펙트] 타격
+                # [이펙트] 타격 - P1의 방향(flip_images) 적용
                 if 'HitEffect' in effect_frames:
-                    effect = VisualEffect(hit_pos, effect_frames['HitEffect'])
+                    effect = VisualEffect(hit_pos, effect_frames['HitEffect'], flip=player1.flip_images)
                     effect_group.add(effect)
 
                 # 데미지 처리
@@ -71,18 +71,20 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames):
             # P1 상태 확인
             if player1.current_state == 'Blocking':
                 print("P1 Blocked!")
-                # [이펙트] 방어
+                # [이펙트] 방어 - P2의 방향(flip_images) 적용 (핵심 수정 부분)
                 if 'BlockEffect' in effect_frames:
-                    effect = VisualEffect(hit_pos, effect_frames['BlockEffect'])
+                    # player2.flip_images는 True이므로 이펙트도 뒤집힘
+                    effect = VisualEffect(hit_pos, effect_frames['BlockEffect'], flip=player2.flip_images)
                     effect_group.add(effect)
 
             elif player1.current_state == 'Dizzy':
                 print("P1 is Invincible! (Dizzy)")
 
             else:
-                # [이펙트] 타격
+                # [이펙트] 타격 - P2의 방향(flip_images) 적용 (핵심 수정 부분)
                 if 'HitEffect' in effect_frames:
-                    effect = VisualEffect(hit_pos, effect_frames['HitEffect'])
+                    # player2.flip_images는 True이므로 이펙트도 뒤집힘
+                    effect = VisualEffect(hit_pos, effect_frames['HitEffect'], flip=player2.flip_images)
                     effect_group.add(effect)
 
                 # 데미지 처리
