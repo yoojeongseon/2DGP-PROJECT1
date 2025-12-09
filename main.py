@@ -1,111 +1,70 @@
 # (파일: main.py)
 
 import pygame
-import os
-from player import Player
-from collisions import handle_player_collisions
-from utils import load_animation_frames # [추가] 이펙트 이미지 로드용
+from title_screen import TitleScreen
+from game_screen import GameScreen
 
-# --- Pygame 초기화 및 설정 ---
+# --- 초기화 ---
 pygame.init()
+pygame.font.init()
+
 SCREEN_WIDTH = 1080
 SCREEN_HEIGHT = 720
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("2DGP 프로젝트 (이펙트 적용)")
+pygame.display.set_caption("2DGP 프로젝트 - Boxing King")
 clock = pygame.time.Clock()
 
-# --- 색상 정의 ---
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-YELLOW = (255, 255, 0)  # 각성 효과용
+# --- 상태 상수 ---
+STATE_TITLE = "TITLE"
+STATE_PLAY = "PLAY"
 
+# --- 현재 상태 및 스크린 객체 ---
+current_state = STATE_TITLE
 
-# --- UI 함수 (체력 바) ---
-def draw_health_bar(surface, x, y, hp, max_hp, is_awakened):
-    """체력 바를 그리는 함수"""
-    if hp < 0: hp = 0
-    BAR_LENGTH = 300
-    BAR_HEIGHT = 20
-    fill_percent = (hp / max_hp)
-    fill_length = int(BAR_LENGTH * fill_percent)
+# 타이틀 화면 객체 생성
+title_screen = TitleScreen(SCREEN_WIDTH, SCREEN_HEIGHT)
+game_screen = None  # 게임 화면은 플레이 시작 시 생성
 
-    outline_rect = pygame.Rect(x, y, BAR_LENGTH, BAR_HEIGHT)
-    fill_rect = pygame.Rect(x, y, fill_length, BAR_HEIGHT)
-
-    # 각성 상태면 체력 바 색상 변경
-    bar_color = YELLOW if is_awakened else GREEN
-
-    pygame.draw.rect(surface, RED, outline_rect)
-    pygame.draw.rect(surface, bar_color, fill_rect)
-
-
-# --- 4. 게임 객체 생성 ---
-
-# [추가] 이펙트 이미지 로드 (프로젝트 폴더에 BlockEffect, HitEffect 폴더가 있어야 함)
-# scale_factor는 이펙트 크기에 맞춰 조절하세요.
-effect_frames = {
-    'BlockEffect': load_animation_frames('BlockEffect', scale_factor=2.0),
-    'HitEffect': load_animation_frames('HitEffect', scale_factor=2.0)
-}
-
-# [추가] 이펙트 스프라이트 그룹
-effect_group = pygame.sprite.Group()
-
-# 플레이어 생성
-P1_SCALE = 0.5
-P1_START_POS = (SCREEN_WIDTH // 4, SCREEN_HEIGHT - 30)
-P1_CONTROLS = (pygame.K_a, pygame.K_d, pygame.K_w, pygame.K_e, pygame.K_r, pygame.K_s)
-
-P1_ANIM_FOLDERS = {
-    'Idle': 'Idle', 'Walk': 'Walk',
-    'Jab': 'PunchLeft', 'Straight': 'PunchRight', 'Uppercut': 'PunchUp',
-    'Blocking': 'Blocking',
-    'Dizzy': 'Dizzy',
-    'KO': 'KO'
-}
-player1 = Player(P1_START_POS, P1_CONTROLS, P1_ANIM_FOLDERS, SCREEN_WIDTH, P1_SCALE, flip_images=False)
-
-P2_SCALE = 0.5
-P2_START_POS = (SCREEN_WIDTH * 3 // 4, SCREEN_HEIGHT - 30)
-P2_CONTROLS = (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_u, pygame.K_i, pygame.K_o, pygame.K_DOWN)
-P2_ANIM_FOLDERS = P1_ANIM_FOLDERS
-player2 = Player(P2_START_POS, P2_CONTROLS, P2_ANIM_FOLDERS, SCREEN_WIDTH, P2_SCALE, flip_images=True)
-
-all_sprites = pygame.sprite.Group()
-all_sprites.add(player1)
-all_sprites.add(player2)
-
-# --- 5. 메인 게임 루프 ---
+# --- 메인 루프 ---
 running = True
 while running:
-    # 1) 이벤트 처리
-    for event in pygame.event.get():
+    # 1. 이벤트 가져오기
+    events = pygame.event.get()
+    for event in events:
         if event.type == pygame.QUIT:
             running = False
 
-    # 2) 게임 로직 업데이트
-    all_sprites.update()
-    effect_group.update() # [추가] 이펙트 애니메이션 업데이트
+    # 2. 상태 처리
+    if current_state == STATE_TITLE:
+        # [타이틀 화면]
+        action = title_screen.handle_events(events)
 
-    # 3) 타격 판정 로직 (이펙트 그룹과 프레임을 함께 전달)
-    handle_player_collisions(player1, player2, effect_group, effect_frames)
+        if action == "PLAY":
+            current_state = STATE_PLAY
+            # 게임 화면을 새로 생성 (이때 게임이 초기화됨)
+            game_screen = GameScreen(SCREEN_WIDTH, SCREEN_HEIGHT)
 
-    # 4) 화면 그리기
-    screen.fill(BLACK)
-    all_sprites.draw(screen)
-    effect_group.draw(screen) # [추가] 이펙트 그리기
+        title_screen.update()
+        title_screen.draw(screen)
 
-    # 체력 바 그리기
-    draw_health_bar(screen, 20, 20, player1.hp, player1.max_hp, player1.is_awakened)
-    draw_health_bar(screen, SCREEN_WIDTH - 320, 20, player2.hp, player2.max_hp, player2.is_awakened)
+    elif current_state == STATE_PLAY:
+        # [게임 플레이 화면]
+        if game_screen:
+            action = game_screen.handle_events(events)
 
-    # 5) 화면 업데이트
+            if action == "RESTART":
+                # 재시작: 게임 화면 객체를 다시 만듦
+                game_screen = GameScreen(SCREEN_WIDTH, SCREEN_HEIGHT)
+            elif action == "TITLE":
+                # 타이틀로: 상태 변경 및 게임 객체 삭제
+                current_state = STATE_TITLE
+                game_screen = None
+
+            game_screen.update()
+            game_screen.draw(screen)
+
+    # 3. 화면 업데이트
     pygame.display.flip()
-
-    # 6) FPS 설정
     clock.tick(60)
 
-# --- 6. 게임 종료 ---
 pygame.quit()
