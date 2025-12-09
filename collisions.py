@@ -6,12 +6,14 @@ from visual_effects import VisualEffect
 
 def handle_player_collisions(player1, player2, effect_group, effect_frames, sounds):
     """
-    타격 판정, 이펙트 생성, 사운드 재생
+    타격 판정, 이펙트 생성, 사운드 재생 + [추가] KO 종소리
     """
 
     AWAKEN_MULTIPLIER = 1.5
 
-    # --- 1. P1 공격 판정 ---
+    # ==================================================
+    # 1. P1 공격 -> P2 피격 판정
+    # ==================================================
     absolute_hitbox_p1 = player1.get_absolute_hitbox()
 
     if (absolute_hitbox_p1 and
@@ -41,12 +43,14 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames, soun
                     effect = VisualEffect(hit_pos, effect_frames['HitEffect'])
                     effect_group.add(effect)
 
-                # [사운드] 공격 종류에 맞는 소리 재생
+                # 타격음 재생
                 attack_type = player1.current_state
                 if attack_type in sounds:
                     sounds[attack_type].play()
 
-                # 데미지 처리
+                # --- [수정] 데미지 및 KO 종소리 체크 ---
+                was_alive = player2.is_alive  # 맞기 전 상태 저장
+
                 current_attack = player1.attacks[player1.current_state]
                 if current_attack.is_ko_move:
                     player2.take_damage(player2.max_hp)
@@ -55,7 +59,15 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames, soun
                     if player1.is_awakened: damage *= AWAKEN_MULTIPLIER
                     player2.take_damage(damage)
 
-    # --- 2. P2 공격 판정 ---
+                # 맞은 후 죽었으면(KO) 종소리 재생!
+                if was_alive and not player2.is_alive:
+                    print("P2 KO! Ring the bell!")
+                    if 'Bell' in sounds:
+                        sounds['Bell'].play()
+
+    # ==================================================
+    # 2. P2 공격 -> P1 피격 판정
+    # ==================================================
     absolute_hitbox_p2 = player2.get_absolute_hitbox()
 
     if (absolute_hitbox_p2 and
@@ -85,12 +97,14 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames, soun
                     effect = VisualEffect(hit_pos, effect_frames['HitEffect'])
                     effect_group.add(effect)
 
-                # [사운드]
+                # 타격음 재생
                 attack_type = player2.current_state
                 if attack_type in sounds:
                     sounds[attack_type].play()
 
-                # 데미지 처리
+                # --- [수정] 데미지 및 KO 종소리 체크 ---
+                was_alive = player1.is_alive  # 맞기 전 상태 저장
+
                 current_attack = player2.attacks[player2.current_state]
                 if current_attack.is_ko_move:
                     player1.take_damage(player1.max_hp)
@@ -98,3 +112,9 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames, soun
                     damage = current_attack.damage
                     if player2.is_awakened: damage *= AWAKEN_MULTIPLIER
                     player1.take_damage(damage)
+
+                # 맞은 후 죽었으면(KO) 종소리 재생!
+                if was_alive and not player1.is_alive:
+                    print("P1 KO! Ring the bell!")
+                    if 'Bell' in sounds:
+                        sounds['Bell'].play()
