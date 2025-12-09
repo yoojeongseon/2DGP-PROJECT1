@@ -23,14 +23,38 @@ class GameScreen:
             print("게임 배경 이미지를 찾을 수 없습니다.")
             self.bg_image = None
 
-        # --- [기존 코드 반영] 이펙트 로드 ---
+        # --- 이펙트 로드 ---
         self.effect_frames = {
             'BlockEffect': load_animation_frames('BlockEffect', scale_factor=2.0),
             'HitEffect': load_animation_frames('HitEffect', scale_factor=2.0)
         }
         self.effect_group = pygame.sprite.Group()
 
-        # --- [기존 코드 반영] 플레이어 생성 ---
+        # --- [추가] 사운드 로드 ---
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
+
+        self.sounds = {}
+        try:
+            # Sounds 폴더에서 파일 로드 (파일명 정확해야 함)
+            self.sounds['Bell'] = pygame.mixer.Sound(os.path.join("Sounds", "boxing_matchbell.wav"))
+            self.sounds['Jab'] = pygame.mixer.Sound(os.path.join("Sounds", "MP_Left Hook.mp3"))
+            self.sounds['Straight'] = pygame.mixer.Sound(os.path.join("Sounds", "MP_Right Cross.mp3"))
+            self.sounds['Uppercut'] = pygame.mixer.Sound(os.path.join("Sounds", "MP_Right Hook.mp3"))
+
+            # 볼륨 조절
+            self.sounds['Bell'].set_volume(0.5)
+            self.sounds['Jab'].set_volume(0.6)
+            self.sounds['Straight'].set_volume(0.6)
+            self.sounds['Uppercut'].set_volume(0.6)
+
+            # 게임 시작 알림 (종소리)
+            self.sounds['Bell'].play()
+
+        except Exception as e:
+            print(f"사운드 로드 실패: {e}")
+
+        # --- 플레이어 생성 ---
         P1_SCALE = 0.5
         P1_START_POS = (screen_width // 4, screen_height - 30)
         P1_CONTROLS = (pygame.K_a, pygame.K_d, pygame.K_w, pygame.K_e, pygame.K_r, pygame.K_s)
@@ -52,15 +76,12 @@ class GameScreen:
         self.all_sprites.add(self.player1)
         self.all_sprites.add(self.player2)
 
-        # 게임 상태 변수
         self.game_over = False
         self.winner_text = ""
 
     def handle_events(self, events):
-        """게임 중 키 입력 처리"""
         for event in events:
             if event.type == pygame.KEYDOWN:
-                # 게임 오버 상태일 때만 R(재시작)이나 ESC(나가기) 가능
                 if self.game_over:
                     if event.key == pygame.K_r:
                         return "RESTART"
@@ -69,16 +90,14 @@ class GameScreen:
         return "PLAY"
 
     def update(self):
-        """게임 로직 업데이트"""
         self.all_sprites.update()
-        self.effect_group.update()  # 이펙트 업데이트
+        self.effect_group.update()
 
-        # [기존 코드 반영] 타격 판정 (이펙트 그룹과 프레임 전달)
-        handle_player_collisions(self.player1, self.player2, self.effect_group, self.effect_frames)
+        # [수정] 타격 판정에 sounds 딕셔너리 전달
+        handle_player_collisions(self.player1, self.player2, self.effect_group, self.effect_frames, self.sounds)
 
-        # 승패 판정 로직
+        # 승패 판정
         if not self.game_over:
-            # 둘 중 하나가 죽었고, KO 애니메이션 상태라면 게임오버 처리
             if (not self.player1.is_alive and self.player1.current_state == 'KO') or \
                     (not self.player2.is_alive and self.player2.current_state == 'KO'):
                 self.game_over = True
@@ -88,27 +107,21 @@ class GameScreen:
                     self.winner_text = "1P WINS!"
 
     def draw(self, screen):
-        """그리기"""
-        # 1. 배경
         if self.bg_image:
             screen.blit(self.bg_image, (0, 0))
         else:
             screen.fill((0, 0, 0))
 
-        # 2. 스프라이트 및 이펙트
         self.all_sprites.draw(screen)
         self.effect_group.draw(screen)
 
-        # 3. 체력바 (각성 효과 적용)
         self.draw_health_bar(screen, 20, 20, self.player1)
         self.draw_health_bar(screen, self.screen_width - 320, 20, self.player2)
 
-        # 4. 게임 오버 텍스트
         if self.game_over:
             self.draw_text_center(screen, self.winner_text, self.result_font, (255, 0, 0), -50)
             self.draw_text_center(screen, "Press R to Restart / ESC to Title", self.guide_font, (255, 255, 255), 50)
 
-    # --- 헬퍼 함수 ---
     def draw_health_bar(self, surface, x, y, player):
         hp = max(0, player.hp)
         max_hp = player.max_hp
@@ -120,7 +133,6 @@ class GameScreen:
         outline_rect = pygame.Rect(x, y, BAR_LENGTH, BAR_HEIGHT)
         fill_rect = pygame.Rect(x, y, fill_length, BAR_HEIGHT)
 
-        # [기존 코드 반영] 각성 상태면 노란색
         bar_color = (255, 255, 0) if player.is_awakened else (0, 255, 0)
 
         pygame.draw.rect(surface, (255, 0, 0), outline_rect)

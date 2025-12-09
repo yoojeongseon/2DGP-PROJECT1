@@ -1,17 +1,17 @@
 # (파일: collisions.py)
 
 import pygame
-from visual_effects import VisualEffect  # visual_effects.py 파일 필요
+from visual_effects import VisualEffect
 
 
-def handle_player_collisions(player1, player2, effect_group, effect_frames):
+def handle_player_collisions(player1, player2, effect_group, effect_frames, sounds):
     """
-    타격 판정 및 이펙트 생성 함수
+    타격 판정, 이펙트 생성, 사운드 재생
     """
 
     AWAKEN_MULTIPLIER = 1.5
 
-    # --- 1. P1이 P2를 때렸는지 검사 ---
+    # --- 1. P1 공격 판정 ---
     absolute_hitbox_p1 = player1.get_absolute_hitbox()
 
     if (absolute_hitbox_p1 and
@@ -21,28 +21,30 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames):
         if absolute_hitbox_p1.colliderect(player2.hurtbox_absolute):
             player1.has_hit = True
 
-            # 이펙트 생성 위치 (충돌 지점)
             hit_pos = (
                 (absolute_hitbox_p1.centerx + player2.hurtbox_absolute.centerx) // 2,
                 (absolute_hitbox_p1.centery + player2.hurtbox_absolute.centery) // 2
             )
 
-            # P2 상태 확인
             if player2.current_state == 'Blocking':
                 print("P2 Blocked!")
-                # [이펙트] 방어 - P1의 방향(flip_images) 적용
                 if 'BlockEffect' in effect_frames:
-                    effect = VisualEffect(hit_pos, effect_frames['BlockEffect'], flip=player1.flip_images)
+                    effect = VisualEffect(hit_pos, effect_frames['BlockEffect'])
                     effect_group.add(effect)
 
             elif player2.current_state == 'Dizzy':
-                print("P2 is Invincible! (Dizzy)")
+                print("P2 is Invincible!")
 
             else:
-                # [이펙트] 타격 - P1의 방향(flip_images) 적용
+                # [타격 성공]
                 if 'HitEffect' in effect_frames:
-                    effect = VisualEffect(hit_pos, effect_frames['HitEffect'], flip=player1.flip_images)
+                    effect = VisualEffect(hit_pos, effect_frames['HitEffect'])
                     effect_group.add(effect)
+
+                # [사운드] 공격 종류에 맞는 소리 재생
+                attack_type = player1.current_state
+                if attack_type in sounds:
+                    sounds[attack_type].play()
 
                 # 데미지 처리
                 current_attack = player1.attacks[player1.current_state]
@@ -53,7 +55,7 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames):
                     if player1.is_awakened: damage *= AWAKEN_MULTIPLIER
                     player2.take_damage(damage)
 
-    # --- 2. P2가 P1을 때렸는지 검사 ---
+    # --- 2. P2 공격 판정 ---
     absolute_hitbox_p2 = player2.get_absolute_hitbox()
 
     if (absolute_hitbox_p2 and
@@ -68,24 +70,25 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames):
                 (absolute_hitbox_p2.centery + player1.hurtbox_absolute.centery) // 2
             )
 
-            # P1 상태 확인
             if player1.current_state == 'Blocking':
                 print("P1 Blocked!")
-                # [이펙트] 방어 - P2의 방향(flip_images) 적용 (핵심 수정 부분)
                 if 'BlockEffect' in effect_frames:
-                    # player2.flip_images는 True이므로 이펙트도 뒤집힘
-                    effect = VisualEffect(hit_pos, effect_frames['BlockEffect'], flip=player2.flip_images)
+                    effect = VisualEffect(hit_pos, effect_frames['BlockEffect'])
                     effect_group.add(effect)
 
             elif player1.current_state == 'Dizzy':
-                print("P1 is Invincible! (Dizzy)")
+                print("P1 is Invincible!")
 
             else:
-                # [이펙트] 타격 - P2의 방향(flip_images) 적용 (핵심 수정 부분)
+                # [타격 성공]
                 if 'HitEffect' in effect_frames:
-                    # player2.flip_images는 True이므로 이펙트도 뒤집힘
-                    effect = VisualEffect(hit_pos, effect_frames['HitEffect'], flip=player2.flip_images)
+                    effect = VisualEffect(hit_pos, effect_frames['HitEffect'])
                     effect_group.add(effect)
+
+                # [사운드]
+                attack_type = player2.current_state
+                if attack_type in sounds:
+                    sounds[attack_type].play()
 
                 # 데미지 처리
                 current_attack = player2.attacks[player2.current_state]
