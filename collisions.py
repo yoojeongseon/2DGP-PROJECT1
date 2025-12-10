@@ -6,13 +6,13 @@ from visual_effects import VisualEffect
 
 def handle_player_collisions(player1, player2, effect_group, effect_frames, sounds):
     """
-    타격 판정, 이펙트 생성(정확한 위치), 사운드 재생
+    타격 판정, 이펙트 생성(방향 적용), 사운드 재생
     """
 
     AWAKEN_MULTIPLIER = 1.5
 
     # ==================================================
-    # 1. P1 공격 -> P2 피격 판정
+    # 1. P1(공격) -> P2(피격)  [방향: 정방향]
     # ==================================================
     absolute_hitbox_p1 = player1.get_absolute_hitbox()
 
@@ -23,42 +23,36 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames, soun
         if absolute_hitbox_p1.colliderect(player2.hurtbox_absolute):
             player1.has_hit = True
 
-            # 1. [공통] 펀치 소리 재생
+            # 1. 펀치 소리
             attack_type = player1.current_state
             if attack_type in sounds:
                 sounds[attack_type].play()
 
-            # ▼▼▼ [수정] 이펙트 위치 계산 방식 변경 ▼▼▼
-            # clip()을 사용하여 두 사각형이 겹치는 부분(교집합)을 구합니다.
+            # 2. 이펙트 위치 (교집합 중심)
             intersection = absolute_hitbox_p1.clip(player2.hurtbox_absolute)
-            # 겹치는 부분의 중심점을 이펙트 생성 위치로 설정합니다.
             hit_pos = intersection.center
-            # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-            # 2. 상태별 분기
+            # 3. 상태별 분기
             if player2.current_state == 'Blocking':
                 print("P2 Blocked!")
-                # [이펙트] 방어 이펙트
                 if 'BlockEffect' in effect_frames:
-                    effect = VisualEffect(hit_pos, effect_frames['BlockEffect'])
+                    # P1 공격이므로 flip=False (기본)
+                    effect = VisualEffect(hit_pos, effect_frames['BlockEffect'], flip=False)
                     effect_group.add(effect)
 
-                # [사운드] 방어 소리 추가
-                if 'Block' in sounds:
-                    sounds['Block'].play()
+                if 'Block' in sounds: sounds['Block'].play()
 
             elif player2.current_state == 'Dizzy':
                 print("P2 is Invincible!")
 
             else:
-                # [타격 성공]
+                # 타격 이펙트 (flip=False)
                 if 'HitEffect' in effect_frames:
-                    effect = VisualEffect(hit_pos, effect_frames['HitEffect'])
+                    effect = VisualEffect(hit_pos, effect_frames['HitEffect'], flip=False)
                     effect_group.add(effect)
 
                 # 데미지 처리
                 was_alive = player2.is_alive
-
                 current_attack = player1.attacks[player1.current_state]
                 if current_attack.is_ko_move:
                     player2.take_damage(player2.max_hp)
@@ -67,12 +61,11 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames, soun
                     if player1.is_awakened: damage *= AWAKEN_MULTIPLIER
                     player2.take_damage(damage)
 
-                # KO 종소리
                 if was_alive and not player2.is_alive:
                     if 'Bell' in sounds: sounds['Bell'].play()
 
     # ==================================================
-    # 2. P2 공격 -> P1 피격 판정
+    # 2. P2(공격) -> P1(피격) [방향: 반대방향(Flip)]
     # ==================================================
     absolute_hitbox_p2 = player2.get_absolute_hitbox()
 
@@ -83,39 +76,36 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames, soun
         if absolute_hitbox_p2.colliderect(player1.hurtbox_absolute):
             player2.has_hit = True
 
-            # 1. [공통] 펀치 소리 재생
+            # 1. 펀치 소리
             attack_type = player2.current_state
             if attack_type in sounds:
                 sounds[attack_type].play()
 
-            # ▼▼▼ [수정] 이펙트 위치 계산 방식 변경 ▼▼▼
-            # P2 주먹과 P1 몸통이 겹치는 정확한 지점을 찾습니다.
+            # 2. 이펙트 위치
             intersection = absolute_hitbox_p2.clip(player1.hurtbox_absolute)
             hit_pos = intersection.center
-            # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
             if player1.current_state == 'Blocking':
                 print("P1 Blocked!")
                 if 'BlockEffect' in effect_frames:
-                    effect = VisualEffect(hit_pos, effect_frames['BlockEffect'])
+                    # ▼▼▼ [수정] P2 공격이므로 flip=True ▼▼▼
+                    effect = VisualEffect(hit_pos, effect_frames['BlockEffect'], flip=True)
                     effect_group.add(effect)
 
-                # [사운드] 방어 소리 추가
-                if 'Block' in sounds:
-                    sounds['Block'].play()
+                if 'Block' in sounds: sounds['Block'].play()
 
             elif player1.current_state == 'Dizzy':
                 print("P1 is Invincible!")
 
             else:
-                # [타격 성공]
+                # 타격 이펙트
                 if 'HitEffect' in effect_frames:
-                    effect = VisualEffect(hit_pos, effect_frames['HitEffect'])
+                    # ▼▼▼ [수정] P2 공격이므로 flip=True ▼▼▼
+                    effect = VisualEffect(hit_pos, effect_frames['HitEffect'], flip=True)
                     effect_group.add(effect)
 
                 # 데미지 처리
                 was_alive = player1.is_alive
-
                 current_attack = player2.attacks[player2.current_state]
                 if current_attack.is_ko_move:
                     player1.take_damage(player1.max_hp)
@@ -124,6 +114,5 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames, soun
                     if player2.is_awakened: damage *= AWAKEN_MULTIPLIER
                     player1.take_damage(damage)
 
-                # KO 종소리
                 if was_alive and not player1.is_alive:
                     if 'Bell' in sounds: sounds['Bell'].play()
