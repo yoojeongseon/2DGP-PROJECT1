@@ -6,7 +6,7 @@ from visual_effects import VisualEffect
 
 def handle_player_collisions(player1, player2, effect_group, effect_frames, sounds):
     """
-    타격 판정, 이펙트 생성, 사운드 재생 (펀치 소리는 항상 재생)
+    타격 판정, 이펙트 생성(정확한 위치), 사운드 재생
     """
 
     AWAKEN_MULTIPLIER = 1.5
@@ -23,16 +23,17 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames, soun
         if absolute_hitbox_p1.colliderect(player2.hurtbox_absolute):
             player1.has_hit = True
 
-            # 1. [공통] 펀치 소리는 무조건 재생! (막혀도 소리 남)
+            # 1. [공통] 펀치 소리 재생
             attack_type = player1.current_state
             if attack_type in sounds:
                 sounds[attack_type].play()
 
-            # 이펙트 위치 계산
-            hit_pos = (
-                (absolute_hitbox_p1.centerx + player2.hurtbox_absolute.centerx) // 2,
-                (absolute_hitbox_p1.centery + player2.hurtbox_absolute.centery) // 2
-            )
+            # ▼▼▼ [수정] 이펙트 위치 계산 방식 변경 ▼▼▼
+            # clip()을 사용하여 두 사각형이 겹치는 부분(교집합)을 구합니다.
+            intersection = absolute_hitbox_p1.clip(player2.hurtbox_absolute)
+            # 겹치는 부분의 중심점을 이펙트 생성 위치로 설정합니다.
+            hit_pos = intersection.center
+            # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
             # 2. 상태별 분기
             if player2.current_state == 'Blocking':
@@ -42,7 +43,7 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames, soun
                     effect = VisualEffect(hit_pos, effect_frames['BlockEffect'])
                     effect_group.add(effect)
 
-                # [사운드] 방어 소리 추가 재생 (펀치음 + 방어음)
+                # [사운드] 방어 소리 추가
                 if 'Block' in sounds:
                     sounds['Block'].play()
 
@@ -87,10 +88,11 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames, soun
             if attack_type in sounds:
                 sounds[attack_type].play()
 
-            hit_pos = (
-                (absolute_hitbox_p2.centerx + player1.hurtbox_absolute.centerx) // 2,
-                (absolute_hitbox_p2.centery + player1.hurtbox_absolute.centery) // 2
-            )
+            # ▼▼▼ [수정] 이펙트 위치 계산 방식 변경 ▼▼▼
+            # P2 주먹과 P1 몸통이 겹치는 정확한 지점을 찾습니다.
+            intersection = absolute_hitbox_p2.clip(player1.hurtbox_absolute)
+            hit_pos = intersection.center
+            # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
             if player1.current_state == 'Blocking':
                 print("P1 Blocked!")
@@ -98,7 +100,7 @@ def handle_player_collisions(player1, player2, effect_group, effect_frames, soun
                     effect = VisualEffect(hit_pos, effect_frames['BlockEffect'])
                     effect_group.add(effect)
 
-                # [사운드] 방어 소리 추가 재생
+                # [사운드] 방어 소리 추가
                 if 'Block' in sounds:
                     sounds['Block'].play()
 
